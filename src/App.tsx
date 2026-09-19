@@ -8,14 +8,14 @@ import type { Inputs, Result, VariantId } from './types'
 
 type Page='dashboard'|'variants'|'compare'|'calculator'|'inputs'|'fire'|'stress'|'glossary'|'variant'
 const nav=[['dashboard','Prehľad',BarChart3],['variants','Varianty',Landmark],['compare','Porovnanie',Scale],['calculator','Kalkulačka',WalletCards],['inputs','Vstupy',Settings2],['fire','FIRE',Flame],['stress','Stres testy',ShieldCheck],['glossary','Slovník',Info]] as const
-const route=()=>{const p=location.pathname;const m=p.match(/^\/variant\/(\d)$/);return m?{page:'variant' as Page,id:Number(m[1]) as VariantId}:{page:(p==='/'?'dashboard':p.slice(1)) as Page,id:undefined}}
-const navigate=(path:string)=>{history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'))}
+const route=()=>{const p=location.hash.startsWith('#/')?location.hash.slice(1):'/';const m=p.match(/^\/variant\/(\d)$/);return m?{page:'variant' as Page,id:Number(m[1]) as VariantId}:{page:(p==='/'?'dashboard':p.slice(1)) as Page,id:undefined}}
+const navigate=(path:string)=>{if(location.hash.slice(1)===path)dispatchEvent(new HashChangeEvent('hashchange'));else location.hash=path}
 
 function App(){
   const [inputs,setInputs]=useState<Inputs>(()=>{try{return {...defaults,...JSON.parse(localStorage.getItem('sloboda-inputs')||'{}')}}catch{return defaults}})
   const [where,setWhere]=useState(route);const [currency,setCurrency]=useState<'CZK'|'EUR'>('CZK');const [real,setReal]=useState(false);const [dark,setDark]=useState(()=>localStorage.getItem('sloboda-theme')==='dark');const [mobile,setMobile]=useState(false);const [stress,setStress]=useState(0)
   const [selected,setSelected]=useState<VariantId[]>([2,6,7]);const fileRef=useRef<HTMLInputElement>(null)
-  useEffect(()=>{const h=()=>setWhere(route());addEventListener('popstate',h);return()=>removeEventListener('popstate',h)},[])
+  useEffect(()=>{const h=()=>setWhere(route());addEventListener('hashchange',h);return()=>removeEventListener('hashchange',h)},[])
   useEffect(()=>{localStorage.setItem('sloboda-inputs',JSON.stringify(inputs))},[inputs]);useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('sloboda-theme',dark?'dark':'light')},[dark])
   const results=useMemo(()=>runAll(inputs,stress),[inputs,stress]);const fmt=(v:number,year=0)=>money(real?v/Math.pow(1+inputs.inflation,year):v,currency,inputs.fx)
   const reset=()=>{setInputs(defaults);localStorage.removeItem('sloboda-inputs')}
