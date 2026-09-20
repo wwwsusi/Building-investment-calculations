@@ -38,7 +38,8 @@ export function runVariant(i:Inputs,id:VariantId,stress=0):Result{
   const months=Math.max(60,i.horizonYears*12), out:Month[]=[]; let house=0,houseDebt=0,insolvent=false;
   const bldPayment=annuity(buildingDebt,i.buildingRate,i.buildingYears*12);
   const initialFirePortfolio=cash+portfolio+(i.dpsAvailable?dps:0)
-  out.push({month:0,cash,portfolio,dps,prague:pVal,beroun:bVal,building,familyApartment,house,pragueDebt:pDebt,berounDebt:bDebt,buildingDebt,houseDebt,personalDebt:personal,income:0,passive:0,expenses:0,debtService:0,freeCash:0,netWorth:cash+portfolio+dps+pVal+bVal+building+familyApartment-pDebt-bDebt-buildingDebt-personal,firePortfolio:initialFirePortfolio,insolvent:false})
+  const emptyBreakdown={personalSpending:0,pragueOperating:0,berounOperating:0,buildingOperating:0,slovakiaHousing:0,czechHousing:0,pragueLoan:0,berounLoan:0,personalLoan:0,buildingLoan:0,houseLoan:0}
+  out.push({month:0,cash,portfolio,dps,prague:pVal,beroun:bVal,building,familyApartment,house,pragueDebt:pDebt,berounDebt:bDebt,buildingDebt,houseDebt,personalDebt:personal,income:0,passive:0,expenses:0,debtService:0,breakdown:emptyBreakdown,freeCash:0,netWorth:cash+portfolio+dps+pVal+bVal+building+familyApartment-pDebt-bDebt-buildingDebt-personal,firePortfolio:initialFirePortfolio,insolvent:false})
   const coverageHistory=[0]
   for(let m=1;m<=months;m++){
     const moved=m>i.moveMonth,retired=m>i.retirementMonth;const year=m/12;const inf=Math.pow(1+i.inflation,year);const rentGrow=Math.pow(1+i.rentGrowth,year);const stressWindow=stress>0&&m>i.moveMonth&&m<=i.moveMonth+12;
@@ -46,21 +47,24 @@ export function runVariant(i:Inputs,id:VariantId,stress=0):Result{
     if(s.house&&m===i.houseMonth){const price=i.housePriceEur*i.fx*Math.pow(1+i.propertyGrowth,m/12);const proposedDebt=price*i.houseLoanShare;const equity=price-proposedDebt;if(available()>=equity){raise(equity,'Kúpa domu');house=price;houseDebt=proposedDebt}else gap+=equity-available()}
     let workIncome=retired?0:(moved?i.salarySkEur*i.fx:i.salaryCz+(m%12===11?i.annualBonus:0));
     if(stressWindow)workIncome*=1-stress;
-    let passive=0,assetCosts=0,debtService=0;
-    if(pVal&&moved){passive+=i.pragueRent*rentGrow;assetCosts+=i.pragueCosts*inf}
-    if(bVal&&(moved||id===3)){passive+=i.berounRent*rentGrow;assetCosts+=i.berounCosts*inf}
-    if(building){const buildingRent=i.buildingRentEur*i.fx*i.buildingShare*rentGrow*(stressWindow?1-stress*.4:1);passive+=buildingRent;assetCosts+=buildingRent*i.buildingCostRate}
-    const pp=pay(pDebt,i.pragueRate,i.praguePayment);pDebt=pp[0];debtService+=pp[1]; const bp=pay(bDebt,i.berounRate,i.berounPayment);bDebt=bp[0];debtService+=bp[1];
-    const per=pay(personal,i.personalRate,i.personalPayment);personal=per[0];debtService+=per[1]; const bup=pay(buildingDebt,i.buildingRate,bldPayment);buildingDebt=bup[0];debtService+=bup[1];
-    const hp=pay(houseDebt,i.houseRate,annuity(houseDebt,i.houseRate,Math.max(1,i.houseYears*12-mathHouseAge(m,i.houseMonth))));houseDebt=hp[0];debtService+=hp[1];
-    let housing=0;if(!moved&&!pVal&&!bVal)housing=i.interimCzRent+i.interimCzServices; if(moved&&!house)housing=i.skHousing;
-    let expenses=i.spending*inf+assetCosts+housing; let free=workIncome+passive-expenses-debtService;
+    let passive=0;
+    const pragueOperating=pVal&&moved?i.pragueCosts*inf:0,berounOperating=bVal&&(moved||id===3)?i.berounCosts*inf:0;
+    if(pVal&&moved)passive+=i.pragueRent*rentGrow
+    if(bVal&&(moved||id===3))passive+=i.berounRent*rentGrow
+    let buildingOperating=0
+    if(building){const buildingRent=i.buildingRentEur*i.fx*i.buildingShare*rentGrow*(stressWindow?1-stress*.4:1);passive+=buildingRent;buildingOperating=buildingRent*i.buildingCostRate}
+    const pp=pay(pDebt,i.pragueRate,i.praguePayment);pDebt=pp[0]; const bp=pay(bDebt,i.berounRate,i.berounPayment);bDebt=bp[0];
+    const per=pay(personal,i.personalRate,i.personalPayment);personal=per[0]; const bup=pay(buildingDebt,i.buildingRate,bldPayment);buildingDebt=bup[0];
+    const hp=pay(houseDebt,i.houseRate,annuity(houseDebt,i.houseRate,Math.max(1,i.houseYears*12-mathHouseAge(m,i.houseMonth))));houseDebt=hp[0];
+    const czechHousing=!moved&&!pVal&&!bVal?i.interimCzRent+i.interimCzServices:0,slovakiaHousing=moved&&!house?i.skHousingEur*i.fx:0,personalSpending=i.spending*inf;
+    const breakdown={personalSpending,pragueOperating,berounOperating,buildingOperating,slovakiaHousing,czechHousing,pragueLoan:pp[1],berounLoan:bp[1],personalLoan:per[1],buildingLoan:bup[1],houseLoan:hp[1]}
+    const expenses=personalSpending+pragueOperating+berounOperating+buildingOperating+slovakiaHousing+czechHousing,debtService=pp[1]+bp[1]+per[1]+bup[1]+hp[1]; let free=workIncome+passive-expenses-debtService;
     if(m===i.moveMonth+1&&stress>0){portfolio*=1-stress}
     portfolio*=Math.pow(1+i.portfolioReturn,1/12);
     if(free>=0){const top=Math.min(free,Math.max(0,i.reserveTarget-cash));cash+=top;portfolio+=free-top}else{let need=-free;const c=Math.min(cash,need);cash-=c;need-=c;const p=Math.min(portfolio,need);portfolio-=p;need-=p;if(need>1){insolvent=true;free=-need}}
     const netWorth=cash+portfolio+dps+pVal+bVal+building+familyApartment+house-pDebt-bDebt-buildingDebt-houseDebt-personal;
-    const firePortfolio=cash+portfolio+(i.dpsAvailable?dps:0);const fireNeedMonthly=i.fireComfort*inf+assetCosts+housing+debtService;const fireCapacityMonthly=passive+firePortfolio*i.swr/12;const coverage=fireNeedMonthly>0?fireCapacityMonthly/fireNeedMonthly:0;coverageHistory.push(coverage)
-    out.push({month:m,cash,portfolio,dps,prague:pVal,beroun:bVal,building,familyApartment,house,pragueDebt:pDebt,berounDebt:bDebt,buildingDebt,houseDebt,personalDebt:personal,income:workIncome,passive,expenses,debtService,freeCash:free,netWorth,firePortfolio,insolvent})
+    const firePortfolio=cash+portfolio+(i.dpsAvailable?dps:0);const nonPersonalCosts=expenses-personalSpending;const fireNeedMonthly=i.fireComfort*inf+nonPersonalCosts+debtService;const fireCapacityMonthly=passive+firePortfolio*i.swr/12;const coverage=fireNeedMonthly>0?fireCapacityMonthly/fireNeedMonthly:0;coverageHistory.push(coverage)
+    out.push({month:m,cash,portfolio,dps,prague:pVal,beroun:bVal,building,familyApartment,house,pragueDebt:pDebt,berounDebt:bDebt,buildingDebt,houseDebt,personalDebt:personal,income:workIncome,passive,expenses,debtService,breakdown,freeCash:free,netWorth,firePortfolio,insolvent})
   }
   let fireMonth=null as number|null,sustainable=true
   for(let m=out.length-1;m>=0;m--){sustainable=sustainable&&coverageHistory[m]>=1&&!out[m].insolvent;if(sustainable)fireMonth=m}

@@ -110,9 +110,9 @@ function livingPlan(id:VariantId,inputs:Inputs,fmt:(v:number,y?:number)=>string)
  const moveYear=(inputs.moveMonth/12).toLocaleString('sk-SK',{maximumFractionDigits:1})
  const houseYear=(inputs.houseMonth/12).toLocaleString('sk-SK',{maximumFractionDigits:1})
  const before=id===5?'Do presunu bývam v Beroune; Praha je predaná.':id===7?`Do presunu bývam v nájme v ČR za ${fmt(inputs.interimCzRent+inputs.interimCzServices)}/mes.`:id===3?'Do presunu bývam v Prahe a Beroun prenajímam.':'Do presunu bývam v Prahe; Beroun je predaný.'
- if(id===1||id===3)return [before,`V mesiaci ${inputs.moveMonth} (asi po ${moveYear} rokoch) sa presťahujem na Slovensko. Vlastný dom tento variant nekupuje.`,`Model preto po presune používa prechodné bývanie na Slovensku za ${fmt(inputs.skHousing)}/mes. počas celého horizontu; túto sumu treba potvrdiť.`]
+ if(id===1||id===3)return [before,`V mesiaci ${inputs.moveMonth} (asi po ${moveYear} rokoch) sa presťahujem na Slovensko. Vlastný dom tento variant nekupuje.`,`Model preto po presune používa bývanie a prevádzku na Slovensku za ${fmt(inputs.skHousingEur*inputs.fx)}/mes. (${inputs.skHousingEur.toLocaleString('sk-SK')} EUR) počas celého horizontu.`]
  const futureHouse=inputs.housePriceEur*inputs.fx*Math.pow(1+inputs.propertyGrowth,inputs.houseMonth/12)
- return [before,`V mesiaci ${inputs.moveMonth} (asi po ${moveYear} rokoch) sa presťahujem na Slovensko a dočasne bývam za ${fmt(inputs.skHousing)}/mes.`,`V mesiaci ${inputs.houseMonth} (asi po ${houseYear} rokoch) kúpim dom. Odhadovaná cena vtedy je ${fmt(futureHouse)}; úver pokryje ${pct(inputs.houseLoanShare)} ceny.`]
+ return [before,`V mesiaci ${inputs.moveMonth} (asi po ${moveYear} rokoch) sa presťahujem na Slovensko a dočasné bývanie s prevádzkou stojí ${fmt(inputs.skHousingEur*inputs.fx)}/mes. (${inputs.skHousingEur.toLocaleString('sk-SK')} EUR).`,`V mesiaci ${inputs.houseMonth} (asi po ${houseYear} rokoch) kúpim dom. Odhadovaná cena vtedy je ${fmt(futureHouse)}; úver pokryje ${pct(inputs.houseLoanShare)} ceny.`]
 }
 
 type MoneyRow={label:string;amount:number;note?:string}
@@ -163,7 +163,7 @@ function phaseBreakdown(r:Result,inputs:Inputs,month:number){
  if(!moved&&r.id===7)home='Nájom v ČR'
  if(moved&&m.house<=0)home='Dočasné bývanie na Slovensku'
  if(moved&&m.house>0)home='Vlastný dom na Slovensku'
- return {m,home,salary:retired?0:m.income,pragueRent,berounRent,buildingRent,total:m.income+m.passive}
+ return {m,home,salary:retired?0:m.income,pragueRent,berounRent,buildingRent,spendingToday:inputs.spending,slovakiaHousingEur:moved&&!m.house?inputs.skHousingEur:0,total:m.income+m.passive}
 }
 
 function VariantsPage({inputs,results,fmt}:{inputs:Inputs;results:Result[];fmt:(v:number,y?:number)=>string}){
@@ -188,15 +188,24 @@ function freedomMetrics(r:Result,inputs:Inputs,budget:number){
  return {target,rents,savingsIncome,passiveTotal,employment,totalWithWork,coverage:target>0?passiveTotal/target:0}
 }
 function IncomeLedger({data,fmt}:{data:ReturnType<typeof phaseBreakdown>;fmt:(v:number,y?:number)=>string}){
- return <section className="income-ledger"><header><span>MESAČNÝ PRÍJEM PO PRESUNE</span><b>{fmt(data.total)}</b></header><dl>
-  <div><dt>Zamestnanie na Slovensku</dt><dd>+ {fmt(data.salary)}</dd></div>
-  <div><dt>Nájom Praha</dt><dd>+ {fmt(data.pragueRent)}</dd></div>
-  <div><dt>Nájom Beroun</dt><dd>+ {fmt(data.berounRent)}</dd></div>
-  <div><dt>Nájom budovy – môj podiel</dt><dd>+ {fmt(data.buildingRent)}</dd></div>
-  <div className="sum"><dt>Príjem spolu</dt><dd>{fmt(data.total)}</dd></div>
-  <div><dt>Život, bývanie a prevádzka</dt><dd>− {fmt(data.m.expenses)}</dd></div>
-  <div><dt>Splátky úverov</dt><dd>− {fmt(data.m.debtService)}</dd></div>
-  <div className="sum"><dt>Voľný cash flow</dt><dd className={data.m.freeCash>=0?'pos':'neg'}>{fmt(data.m.freeCash)}</dd></div>
+ const b=data.m.breakdown,loans=[['Splátka hypotéky Praha',b.pragueLoan],['Splátka hypotéky Beroun',b.berounLoan],['Splátka osobného úveru',b.personalLoan],['Splátka úveru na budovu',b.buildingLoan],['Splátka úveru na dom',b.houseLoan]] as const
+ return <section className="income-ledger"><header><span>MESAČNÁ BILANCIA PO PRESUNE</span><div><small>Príjmy {fmt(data.total)}</small><small>Výdavky {fmt(data.m.expenses+data.m.debtService)}</small><b className={data.m.freeCash>=0?'pos':'neg'}>CF {fmt(data.m.freeCash)}</b></div></header><dl>
+  <div className="ledger-label"><dt>PRÍJMY</dt><dd>{fmt(data.total)}</dd></div>
+  <div><dt>Čistá mzda na Slovensku</dt><dd>+ {fmt(data.salary)}</dd></div>
+  <div><dt>Hrubé nájomné Praha</dt><dd>+ {fmt(data.pragueRent)}</dd></div>
+  <div><dt>Hrubé nájomné Beroun</dt><dd>+ {fmt(data.berounRent)}</dd></div>
+  <div><dt>Externé nájomné budovy – môj podiel</dt><dd>+ {fmt(data.buildingRent)}</dd></div>
+  <div className="sum"><dt>Príjmy spolu</dt><dd>{fmt(data.total)}</dd></div>
+  <div className="ledger-label expense"><dt>VÝDAVKY</dt><dd>{fmt(data.m.expenses+data.m.debtService)}</dd></div>
+  <div><dt>Osobná spotreba po inflácii <small>vstup {fmt(data.spendingToday)} v dnešných cenách</small></dt><dd>− {fmt(b.personalSpending)}</dd></div>
+  <div><dt>Bývanie a prevádzka na Slovensku {data.slovakiaHousingEur>0&&<small>{data.slovakiaHousingEur.toLocaleString('sk-SK')} EUR</small>}</dt><dd>− {fmt(b.slovakiaHousing)}</dd></div>
+  <div><dt>Prevádzka bytu Praha</dt><dd>− {fmt(b.pragueOperating)}</dd></div>
+  <div><dt>Prevádzka bytu Beroun</dt><dd>− {fmt(b.berounOperating)}</dd></div>
+  <div><dt>Prevádzka a rezerva budovy</dt><dd>− {fmt(b.buildingOperating)}</dd></div>
+  {b.czechHousing>0&&<div><dt>Náhradné bývanie v ČR</dt><dd>− {fmt(b.czechHousing)}</dd></div>}
+  {loans.filter(([,value])=>value>0).map(([label,value])=><div key={label}><dt>{label}</dt><dd>− {fmt(value)}</dd></div>)}
+  <div className="sum"><dt>Výdavky spolu</dt><dd>− {fmt(data.m.expenses+data.m.debtService)}</dd></div>
+  <div className="sum final"><dt>Voľný cash flow</dt><dd className={data.m.freeCash>=0?'pos':'neg'}>{fmt(data.m.freeCash)}</dd></div>
  </dl></section>
 }
 function FreedomScore({metrics,fmt}:{metrics:ReturnType<typeof freedomMetrics>;fmt:(v:number,y?:number)=>string}){

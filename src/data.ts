@@ -8,7 +8,7 @@ export const defaults: Inputs = {
   personalDebt:986211, personalPayment:13368, personalRate:.064, buildingPriceEur:400000, buildingShare:.5, buildingLtv:.6, v6PragueDebtTarget:1750000,
   familyApartmentValueEur:120000, sisterPayoutEur:60000, familyBuildingLtv:.8,
   buildingRentEur:1800, buildingCostRate:.2, buildingRate:.06, buildingYears:15, housePriceEur:300000, houseMonth:84,
-  houseLoanShare:0, houseRate:.05, houseYears:20, interimCzRent:25000, interimCzServices:7000, skHousing:0,
+  houseLoanShare:0, houseRate:.05, houseYears:20, interimCzRent:25000, interimCzServices:7000, skHousingEur:300,
   fireLean:30000, fireComfort:50000, fireTravel:70000, retirementMonth:180
 }
 export const variants: Record<VariantId,{title:string;short:string;tags:string[]}> = {
@@ -83,7 +83,7 @@ export const inputMeta:Record<keyof Inputs,InputMeta> = {
   houseYears:{label:'Splatnosť úveru na dom',unit:'rokov',description:'Počet rokov splácania hypotéky na dom.',source:'Pracovný predpoklad'},
   interimCzRent:{label:'Nájom v ČR po predaji bytov',unit:'CZK/mesiac',description:'Náhradné bývanie v Česku, ak sa oba byty predajú ešte pred presunom.',source:'Pracovný predpoklad'},
   interimCzServices:{label:'Služby k nájmu v ČR',unit:'CZK/mesiac',description:'Energie a služby platené navyše k nájmu v Česku.',source:'Pracovný predpoklad'},
-  skHousing:{label:'Prechodné bývanie na Slovensku',unit:'CZK/mesiac',description:'Príspevok rodičom alebo nájom po presune a pred kúpou domu; nula je iba pracovný predpoklad.',source:'Potrebné doplniť'},
+  skHousingEur:{label:'Bývanie a prevádzka na Slovensku',unit:'EUR/mesiac',description:'Mesačný nájom, príspevok domácnosti alebo prevádzka bývania po presune. Predvolených 300 EUR je pracovný predpoklad.',source:'Pracovný predpoklad'},
   fireLean:{label:'Lean FIRE rozpočet',unit:'CZK/mesiac',description:'Úsporný cieľový mesačný rozpočet v dnešných cenách.',source:'Pracovný predpoklad'},
   fireComfort:{label:'Comfort FIRE rozpočet',unit:'CZK/mesiac',description:'Komfortný cieľový mesačný rozpočet v dnešných cenách.',source:'Pracovný predpoklad'},
   fireTravel:{label:'Travel FIRE rozpočet',unit:'CZK/mesiac',description:'Vyšší cieľový rozpočet zahŕňajúci intenzívnejšie cestovanie.',source:'Pracovný predpoklad'},
