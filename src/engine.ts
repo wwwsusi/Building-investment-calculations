@@ -49,7 +49,8 @@ export function runVariant(i:Inputs,id:VariantId,stress=0):Result{
     let passive=0,assetCosts=0,debtService=0;
     if(pVal&&moved){passive+=i.pragueRent*rentGrow;assetCosts+=i.pragueCosts*inf}
     if(bVal&&(moved||id===3)){passive+=i.berounRent*rentGrow;assetCosts+=i.berounCosts*inf}
-    if(building){const buildingRent=i.buildingRentEur*i.fx*i.buildingShare*rentGrow*(stressWindow?1-stress*.4:1);passive+=buildingRent;assetCosts+=buildingRent*i.buildingCostRate}
+    // Nájomné ani náklady odvodené z nájomného budovy sa do variantov dočasne nezapočítavajú.
+    // Budova zostáva aktívom a jej úver zostáva súčasťou dlhu a mesačných splátok.
     const pp=pay(pDebt,i.pragueRate,i.praguePayment);pDebt=pp[0];debtService+=pp[1]; const bp=pay(bDebt,i.berounRate,i.berounPayment);bDebt=bp[0];debtService+=bp[1];
     const per=pay(personal,i.personalRate,i.personalPayment);personal=per[0];debtService+=per[1]; const bup=pay(buildingDebt,i.buildingRate,bldPayment);buildingDebt=bup[0];debtService+=bup[1];
     const hp=pay(houseDebt,i.houseRate,annuity(houseDebt,i.houseRate,Math.max(1,i.houseYears*12-mathHouseAge(m,i.houseMonth))));houseDebt=hp[0];debtService+=hp[1];

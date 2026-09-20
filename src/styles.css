@@ -38,3 +38,4 @@
 @media(max-width:900px){.variant-grid,.timeline-charts{grid-template-columns:1fr}.timeline-charts article:last-child{grid-column:auto}}
 @media(max-width:600px){.dashboard-kpis{grid-template-columns:1fr}.funding-strip{grid-template-columns:1fr}.funding-strip i{display:none}.freedom-score{grid-template-columns:1fr}.score-ring{margin:auto}.variant-card{padding:16px}}
 body{overflow-x:hidden}
+.excluded-value,.excluded-input{color:var(--muted)!important;font-weight:600!important;font-style:italic}.excluded-input{display:block;padding:9px 10px;border:1px dashed var(--line);border-radius:7px;background:var(--bg);font-size:9px;text-align:center}
