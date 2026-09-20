@@ -12,14 +12,14 @@ export const defaults: Inputs = {
   fireLean:30000, fireComfort:50000, fireTravel:70000, retirementMonth:180
 }
 export const variants: Record<VariantId,{title:string;short:string;tags:string[]}> = {
-  1:{title:'Praha bez dlhu',short:'Predať Beroun, vyčistiť dlhy, ponechať si pražskú základňu.',tags:['nízky dlh','česká základňa']},
-  2:{title:'Praha + polovica budovy',short:'Bezdlžná Praha a podiel na budove; financovanie treba dorovnať.',tags:['partnerka','pasívny príjem']},
-  3:{title:'Všetky tri nehnuteľnosti',short:'Ponechať oba byty a financovať budovu — vysoká koncentrácia.',tags:['rast','vysoký dlh']},
-  4:{title:'Praha + dom',short:'Predať Beroun a kúpiť dom pri presune na Slovensko.',tags:['bývanie','bez budovy']},
-  5:{title:'Beroun bez dlhu + budova',short:'Predať Prahu, oddlžiť Beroun a kúpiť podiel na budove.',tags:['Beroun','chýba financovanie']},
-  6:{title:'Likvidita + budova',short:'Znížiť pražský dlh, kúpiť budovu a zachovať viac kapitálu.',tags:['vyvážený','likvidita']},
-  7:{title:'Predať oba byty',short:'Budova, portfólio a prenájom; jednoduchšie, bez českej základne.',tags:['likvidita','jednoduchosť']},
-  8:{title:'Rodinný byt ako zábezpeka',short:'Vyplatiť sestru z vlastných peňazí a použiť rodinný byt na vyššie financovanie budovy.',tags:['rodinný byt','dodatočná zábezpeka']}
+  1:{title:'Predám Beroun, Praha zostane bez dlhu',short:'Čistý výnos z predaja Berouna vyčistí hypotéku Prahy aj osobný úver; dnešné úspory zostanú nedotknuté.',tags:['nízky dlh','česká základňa']},
+  2:{title:'Predám Beroun, oddlžím Prahu a kúpim 50 % budovy',short:'Praha zostane bez hypotéky a pribudne financovaný podiel na budove.',tags:['partnerka','pasívny príjem']},
+  3:{title:'Ponechám Prahu aj Beroun a kúpim 50 % budovy',short:'Oba byty zostanú s hypotékami a pribudne financovaný podiel na budove.',tags:['rast','vysoký dlh']},
+  4:{title:'Predám Beroun, ponechám dlh Prahy a kúpim dom',short:'Pražská hypotéka pokračuje; budova sa nekupuje a po presune pribudne vlastný dom.',tags:['bývanie','bez budovy']},
+  5:{title:'Predám Prahu, oddlžím Beroun a kúpim 50 % budovy',short:'Beroun zostane bez hypotéky a pribudne financovaný podiel na budove.',tags:['Beroun','chýba financovanie']},
+  6:{title:'Predám Beroun, znížim dlh Prahy a kúpim 50 % budovy',short:'Časť pražskej hypotéky zostane, aby ostalo viac peňazí na budovu a rezervu.',tags:['vyvážený','likvidita']},
+  7:{title:'Predám Prahu aj Beroun a budovu kúpim bez úveru',short:'České byty sa predajú; podiel budovy sa zaplatí bez novej hypotéky.',tags:['likvidita','jednoduchosť']},
+  8:{title:'Predám Beroun, vyplatím sestru a založím rodinný byt',short:'Rodinný byt sa použije ako dodatočná zábezpeka pre vyššie financovanie 50 % budovy.',tags:['rodinný byt','dodatočná zábezpeka']}
 }
 export const inputGroups = [
   {title:'Životná časová os', fields:[['moveMonth','Presun na Slovensko','mesiac'],['retirementMonth','Koniec práce','mesiac'],['horizonYears','Horizont','rokov'],['fx','Kurz EUR','CZK/EUR']]},
