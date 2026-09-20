@@ -1,11 +1,11 @@
 import type { Inputs, VariantId } from './types'
 export const defaults: Inputs = {
-  salaryCz:100000, annualBonus:200000, salarySkEur:2000, spending:30000, monthlyInvest:5000, fx:24.35,
-  moveMonth:60, horizonYears:20, inflation:.025, portfolioReturn:.05, propertyGrowth:.025, rentGrowth:.02,
+  salaryCz:100000, annualBonus:200000, salarySkEur:2000, spending:30000, fx:24.35,
+  moveMonth:60, horizonYears:20, inflation:.025, portfolioReturn:.05, dpsReturn:0, propertyGrowth:.025, buildingGrowth:.02, rentGrowth:.02,
   swr:.035, reserveTarget:1000000, saleCost:.03, cash:926000, portfolio:1120000, dps:700000, dpsAvailable:false,
   pragueValue:7000000, pragueDebt:3120963, praguePayment:18748, pragueRate:.0489, pragueRent:23000, pragueCosts:7000,
   berounValue:12000000, berounDebt:5870199, berounPayment:32263, berounRate:.0439, berounRent:25000, berounCosts:10000,
-  personalDebt:986211, personalPayment:13368, personalRate:.064, buildingPriceEur:400000, buildingShare:.5, buildingLtv:.6,
+  personalDebt:986211, personalPayment:13368, personalRate:.064, buildingPriceEur:400000, buildingShare:.5, buildingLtv:.6, v6PragueDebtTarget:1750000,
   familyApartmentValueEur:120000, sisterPayoutEur:60000, familyBuildingLtv:.8,
   buildingRentEur:1800, buildingCostRate:.2, buildingRate:.06, buildingYears:15, housePriceEur:300000, houseMonth:84,
   houseLoanShare:0, houseRate:.05, houseYears:20, interimCzRent:25000, interimCzServices:7000, skHousing:0,
@@ -24,7 +24,7 @@ export const variants: Record<VariantId,{title:string;short:string;tags:string[]
 export const inputGroups = [
   {title:'Životná časová os', fields:[['moveMonth','Presun na Slovensko','mesiac'],['retirementMonth','Koniec práce','mesiac'],['horizonYears','Horizont','rokov'],['fx','Kurz EUR','CZK/EUR']]},
   {title:'Príjem a život', fields:[['salaryCz','Čistá mzda v ČR','CZK/mes.'],['annualBonus','Ročná odmena','CZK/rok'],['salarySkEur','Čistá mzda na SK','EUR/mes.'],['spending','Osobná spotreba','CZK/mes.']]},
-  {title:'Makro a FIRE', fields:[['portfolioReturn','Výnos portfólia','% p.a.'],['inflation','Inflácia','% p.a.'],['propertyGrowth','Rast cien nehnuteľností','% p.a.'],['swr','SWR','%']]},
+  {title:'Makro a FIRE', fields:[['portfolioReturn','Výnos portfólia','% p.a.'],['dpsReturn','Výnos DPS','% p.a.'],['inflation','Inflácia','% p.a.'],['propertyGrowth','Rast cien bytov a domu','% p.a.'],['buildingGrowth','Rast hodnoty budovy','% p.a.'],['swr','SWR','%']]},
   {title:'Ciele a veľké nákupy', fields:[['reserveTarget','Cieľ rezervy','CZK'],['buildingPriceEur','Cena budovy','EUR'],['buildingLtv','LTV budovy','%'],['familyApartmentValueEur','Hodnota rodinného bytu','EUR'],['sisterPayoutEur','Vyplatenie sestry','EUR'],['familyBuildingLtv','LTV budovy vo V8','%'],['housePriceEur','Cena domu','EUR'],['houseMonth','Kúpa domu','mesiac']]}
 ] as const
 
@@ -34,13 +34,14 @@ export const inputMeta:Record<keyof Inputs,InputMeta> = {
   annualBonus:{label:'Ročná odmena',unit:'CZK/rok',description:'Čistá ročná odmena vyplatená v jednom modelovom mesiaci, nie každý mesiac.',source:'Pracovný predpoklad'},
   salarySkEur:{label:'Čistá mzda na Slovensku',unit:'EUR/mesiac',description:'Príjem od presunu na Slovensko do ukončenia práce; nesčítava sa s českou mzdou.',source:'Údaj používateľa'},
   spending:{label:'Osobná spotreba',unit:'CZK/mesiac',description:'Bežné životné výdavky mimo samostatne modelovaných nákladov nehnuteľností.',source:'Údaj používateľa'},
-  monthlyInvest:{label:'Pravidelné investovanie',unit:'CZK/mesiac',description:'Presun peňazí do portfólia, nie spotreba; model prebytok aj tak smeruje najprv do rezervy a potom do portfólia.',source:'Údaj používateľa'},
   fx:{label:'Kurz EUR',unit:'CZK za 1 EUR',description:'Modelový kurz na prepočet eurových príjmov, budovy a domu do CZK.',source:'Prevzaté z predchádzajúceho modelu'},
   moveMonth:{label:'Presun na Slovensko',unit:'mesiac od štartu',description:'Mesiac, keď sa vypne česká mzda, zapne slovenská mzda a zmení sa bývanie aj prenájom bytov.',source:'Pracovný predpoklad'},
   horizonYears:{label:'Horizont modelu',unit:'rokov',description:'Dĺžka mesačnej projekcie používaná v grafoch, tabuľkách a FIRE výpočtoch.',source:'Pracovný predpoklad'},
   inflation:{label:'Inflácia',unit:'% p.a.',description:'Ročný rast životných a prevádzkových výdavkov; používa sa aj na prepočet do dnešných cien.',source:'Pracovný predpoklad',percent:true},
   portfolioReturn:{label:'Výnos portfólia',unit:'% p.a.',description:'Očakávaný nominálny ročný výnos investícií po poplatkoch, pred osobnými daňami.',source:'Pracovný predpoklad',percent:true},
+  dpsReturn:{label:'Výnos DPS',unit:'% p.a.',description:'Očakávané nominálne zhodnotenie zostávajúcej hodnoty DPS. Nula zachováva konzervatívny predpoklad bez rastu.',source:'Pracovný predpoklad',percent:true},
   propertyGrowth:{label:'Rast cien nehnuteľností',unit:'% p.a.',description:'Nominálny ročný rast hodnoty bytov a domu; nie je to hotovostný príjem.',source:'Pracovný predpoklad',percent:true},
+  buildingGrowth:{label:'Rast hodnoty budovy',unit:'% p.a.',description:'Nominálny ročný rast hodnoty komerčnej budovy. Je oddelený od rastu bytov a domu.',source:'Pracovný predpoklad',percent:true},
   rentGrowth:{label:'Rast nájomného',unit:'% p.a.',description:'Ročná indexácia príjmov z prenájmu Prahy, Berouna a budovy.',source:'Pracovný predpoklad',percent:true},
   swr:{label:'Bezpečná miera výberu (SWR)',unit:'%',description:'Orientačné percento portfólia použiteľné ročne na FIRE; nejde o garantovaný výnos.',source:'Pracovný predpoklad',percent:true},
   reserveTarget:{label:'Cieľ hotovostnej rezervy',unit:'CZK',description:'Suma, ktorú model prednostne drží v hotovosti pred ďalším investovaním.',source:'Pracovný predpoklad'},
@@ -67,6 +68,7 @@ export const inputMeta:Record<keyof Inputs,InputMeta> = {
   buildingPriceEur:{label:'Cena celej budovy',unit:'EUR',description:'Kúpna cena celej komerčnej budovy v Humennom pred vedľajšími nákladmi.',source:'Údaj používateľa'},
   buildingShare:{label:'Váš podiel na budove',unit:'% vlastníctva',description:'Ekonomický vlastnícky podiel používateľa; 50 % znamená polovicu hodnoty, príjmov, nákladov a CAPEX.',source:'Údaj používateľa',percent:true},
   buildingLtv:{label:'LTV úveru na budovu',unit:'%',description:'Podiel kúpnej ceny vášho podielu financovaný novým úverom; zvyšok musí pokryť vlastný kapitál.',source:'Pracovný predpoklad',percent:true},
+  v6PragueDebtTarget:{label:'Cieľový zostatok hypotéky Praha vo V6',unit:'CZK',description:'Zostatok pražskej hypotéky, na ktorý ju V6 zníži. Ak je aktuálny dlh nižší, model ho nezvýši.',source:'Pracovný predpoklad'},
   familyApartmentValueEur:{label:'Hodnota rodinného bytu',unit:'EUR',description:'Pracovná trhová hodnota bytu, ktorý otec prevedie na vás a sestru. Vo V8 po vyplatení sestry vlastníte 100 % bytu; otec v ňom naďalej býva.',source:'Potrebné doplniť'},
   sisterPayoutEur:{label:'Vyplatenie sestry',unit:'EUR',description:'Jednorazová suma zaplatená sestre výlučne z existujúcej hotovosti a portfólia. Model na túto platbu nevytvára nový úver.',source:'Údaj používateľa'},
   familyBuildingLtv:{label:'LTV budovy vo V8',unit:'%',description:'Pracovný podiel ceny budovy financovaný úverom pri dodatočnom založení rodinného bytu. Banka ho musí potvrdiť; nejde o ponuku.',source:'Pracovný predpoklad',percent:true},

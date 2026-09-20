@@ -1,11 +1,12 @@
 export type VariantId = 1|2|3|4|5|6|7|8
 export type Inputs = {
-  salaryCz:number; annualBonus:number; salarySkEur:number; spending:number; monthlyInvest:number; fx:number;
-  moveMonth:number; horizonYears:number; inflation:number; portfolioReturn:number; propertyGrowth:number; rentGrowth:number;
+  salaryCz:number; annualBonus:number; salarySkEur:number; spending:number; fx:number;
+  moveMonth:number; horizonYears:number; inflation:number; portfolioReturn:number; dpsReturn:number; propertyGrowth:number; buildingGrowth:number; rentGrowth:number;
   swr:number; reserveTarget:number; saleCost:number; cash:number; portfolio:number; dps:number; dpsAvailable:boolean;
   pragueValue:number; pragueDebt:number; praguePayment:number; pragueRate:number; pragueRent:number; pragueCosts:number;
   berounValue:number; berounDebt:number; berounPayment:number; berounRate:number; berounRent:number; berounCosts:number;
   personalDebt:number; personalPayment:number; personalRate:number; buildingPriceEur:number; buildingShare:number; buildingLtv:number;
+  v6PragueDebtTarget:number;
   familyApartmentValueEur:number; sisterPayoutEur:number; familyBuildingLtv:number;
   buildingRentEur:number; buildingCostRate:number; buildingRate:number; buildingYears:number; housePriceEur:number; houseMonth:number;
   houseLoanShare:number; houseRate:number; houseYears:number; interimCzRent:number; interimCzServices:number; skHousing:number;

@@ -20,8 +20,9 @@ export function calculatePurchase(i:PurchaseInputs){
 
 export function calculateOperations(i:OperationsInputs){
   const grossRent=i.rents.reduce((sum,r)=>sum+Math.max(0,r),0)
-  const effectiveRent=grossRent*(1-i.vacancyRate)
-  const repairReserve=effectiveRent*i.repairReserveRate
+  const vacancyRate=Math.min(1,Math.max(0,i.vacancyRate)),repairReserveRate=Math.min(1,Math.max(0,i.repairReserveRate))
+  const effectiveRent=grossRent*(1-vacancyRate)
+  const repairReserve=effectiveRent*repairReserveRate
   const fixedOperating=i.insuranceAnnual/12+i.utilitiesMonthly+i.accountingMonthly+i.propertyTaxAnnual/12+i.otherMonthly
   const operatingCosts=fixedOperating+repairReserve
   const noi=effectiveRent-operatingCosts
@@ -29,7 +30,7 @@ export function calculateOperations(i:OperationsInputs){
   const capRate=i.propertyValue>0?noi*12/i.propertyValue:0
   const cashRoi=i.cashInvested>0?cashFlow*12/i.cashInvested:0
   const dscr=i.loanPayment>0?noi/i.loanPayment:0
-  const breakEvenDenominator=grossRent*(1-i.repairReserveRate)
-  const breakEvenOccupancy=breakEvenDenominator>0?(fixedOperating+i.loanPayment)/breakEvenDenominator:0
+  const breakEvenDenominator=grossRent*(1-repairReserveRate)
+  const breakEvenOccupancy=breakEvenDenominator>0?(fixedOperating+i.loanPayment)/breakEvenDenominator:fixedOperating+i.loanPayment>0?Infinity:0
   return {grossRent,effectiveRent,repairReserve,operatingCosts,noi,cashFlow,capRate,cashRoi,dscr,breakEvenOccupancy}
 }
