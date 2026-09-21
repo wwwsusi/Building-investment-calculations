@@ -38,7 +38,10 @@ const tips:Record<string,string>={
   'Rok predaja':'Rok od dneška, na začiatku ktorého sa predaj uskutoční.',
   'Predajná cena':'Očakávaná hrubá predajná cena pred províziou a splatením hypotéky.',
   'Náklady predaja':'Provízia, právne a ostatné náklady ako percento z predajnej ceny.',
-  'Splatiť z hypotéky':'Percento aktuálneho zostatku hypotéky splatené pri predaji. Hodnota pod 100 % ponechá po predaji dlh a vyžaduje súhlas banky.',
+  'Splatiť hypotéku pri predaji':'Percento aktuálneho zostatku hypotéky splatené z predajnej ceny. Hodnota pod 100 % ponechá po predaji dlh a vyžaduje súhlas banky.',
+  'Mimoriadne splatiť hypotéku':'Jednorazovo splatí zvolenú časť aktuálneho zostatku z vašej hotovosti. Model potom pomerne zníži mesačnú splátku; banka môže v praxi namiesto toho skrátiť splatnosť.',
+  'Rok mimoriadnej splátky':'Rok, na začiatku ktorého sa peniaze odpočítajú z hotovosti a použijú na zníženie hypotéky.',
+  'Časť hypotéky na splatenie':'Percento zo zostatku hypotéky v danom roku, nie percento z pôvodnej výšky úveru.',
   'Kúpiť bývanie na Slovensku':'Zapne kúpu bytu alebo domu ako samostatnú transakciu.',
   'Rok kúpy':'Rok od dneška, na začiatku ktorého sa kúpa uskutoční.',
   'Cena bývania':'Kúpna cena bez jednorazových vedľajších nákladov.',
@@ -89,15 +92,18 @@ function ExistingProperty({home,currency,fx,advanced,onChange}:{home:ExistingHom
   return <section className="life-subcard"><header><div><span>ČESKÁ NEHNUTEĽNOSŤ</span><h3>{home.label}</h3></div><Toggle label="Predať nehnuteľnosť" checked={home.sell} onChange={v=>set('sell',v)}/></header>
     <MoneyField label="Trhová hodnota" value={home.value} currency={currency} fx={fx} onChange={v=>set('value',v)}/>
     <MoneyField label="Zostatok hypotéky" value={home.debt} currency={currency} fx={fx} onChange={v=>set('debt',v)}/>
+    <Toggle label="Mimoriadne splatiť hypotéku" checked={home.partialPayoff} onChange={v=>set('partialPayoff',v)}/>
+    {home.partialPayoff&&<div className="life-conditional"><NumberField label="Rok mimoriadnej splátky" value={home.partialPayoffYear} min={1} max={60} onChange={v=>set('partialPayoffYear',Math.round(v))}/><RateField label="Časť hypotéky na splatenie" value={home.partialPayoffRate} onChange={v=>set('partialPayoffRate',v)}/></div>}
     {advanced&&<><MoneyField label="Mesačná splátka hypotéky" value={home.monthlyPayment} currency={currency} fx={fx} onChange={v=>set('monthlyPayment',v)}/><RateField label="Úrok hypotéky" value={home.annualRate} onChange={v=>set('annualRate',v)}/><MoneyField label="Mesačná prevádzka" value={home.monthlyOperating} currency={currency} fx={fx} onChange={v=>set('monthlyOperating',v)}/></>}
     {!home.sell&&<><Toggle label="Prenajímať po presune" checked={home.rentAfterMove} onChange={v=>set('rentAfterMove',v)}/>{home.rentAfterMove&&<MoneyField label="Hrubé nájomné" value={home.monthlyRent} currency={currency} fx={fx} onChange={v=>set('monthlyRent',v)}/>}</>}
-    {home.sell&&<div className="life-conditional"><NumberField label="Rok predaja" value={home.saleYear} min={1} max={60} onChange={v=>set('saleYear',Math.round(v))}/><MoneyField label="Predajná cena" value={home.salePrice} currency={currency} fx={fx} onChange={v=>set('salePrice',v)}/>{advanced&&<><RateField label="Náklady predaja" value={home.saleCostRate} onChange={v=>set('saleCostRate',v)}/><RateField label="Splatiť z hypotéky" value={home.mortgagePayoffRate} onChange={v=>set('mortgagePayoffRate',v)}/></>}</div>}
+    {home.sell&&<div className="life-conditional"><NumberField label="Rok predaja" value={home.saleYear} min={1} max={60} onChange={v=>set('saleYear',Math.round(v))}/><MoneyField label="Predajná cena" value={home.salePrice} currency={currency} fx={fx} onChange={v=>set('salePrice',v)}/>{advanced&&<><RateField label="Náklady predaja" value={home.saleCostRate} onChange={v=>set('saleCostRate',v)}/><RateField label="Splatiť hypotéku pri predaji" value={home.mortgagePayoffRate} onChange={v=>set('mortgagePayoffRate',v)}/></>}</div>}
   </section>
 }
 
 function phaseRow(result:LifeResult,year:number){return result.years[Math.min(result.years.length-1,Math.max(0,year))]}
 function PhaseCard({title,row,currency,fx}:{title:string;row:LifeYear;currency:ViewCurrency;fx:number}){
   const fmt=(v:number)=>money(v,currency,fx)
+  const mortgage=(label:string,owned:boolean,payment:number,debt:number)=>owned?<div><dt>{label}</dt><dd>{payment>0?`− ${fmt(payment)}`:debt<=1?'0 · splatená':'0 · bez splátky'}</dd></div>:null
   return <article className="life-phase-card"><header><span>{title}</span><b>{row.location} · {row.working?'pracujem':'bez práce'}</b></header><dl>
     <div className="group"><dt>PRÍJMY</dt><dd/></div>
     {row.salaryMonthly>0&&<div><dt>Čistá mzda</dt><dd>+ {fmt(row.salaryMonthly)}</dd></div>}
@@ -110,10 +116,10 @@ function PhaseCard({title,row,currency,fx}:{title:string;row:LifeYear;currency:V
     {row.housingMonthly>0&&<div><dt>Bývanie</dt><dd>− {fmt(row.housingMonthly)}</dd></div>}
     {row.pragueCostMonthly>0&&<div><dt>Prevádzka Prahy</dt><dd>− {fmt(row.pragueCostMonthly)}</dd></div>}
     {row.berounCostMonthly>0&&<div><dt>Prevádzka Berouna</dt><dd>− {fmt(row.berounCostMonthly)}</dd></div>}
-    {row.praguePaymentMonthly>0&&<div><dt>Hypotéka Praha</dt><dd>− {fmt(row.praguePaymentMonthly)}</dd></div>}
-    {row.berounPaymentMonthly>0&&<div><dt>Hypotéka Beroun</dt><dd>− {fmt(row.berounPaymentMonthly)}</dd></div>}
-    {row.homePaymentMonthly>0&&<div><dt>Úver na bývanie SK</dt><dd>− {fmt(row.homePaymentMonthly)}</dd></div>}
-    {row.familyPaymentMonthly>0&&<div><dt>Úver na vyplatenie sestry</dt><dd>− {fmt(row.familyPaymentMonthly)}</dd></div>}
+    {mortgage('Hypotéka Praha',row.pragueOwned,row.praguePaymentMonthly,row.pragueDebt)}
+    {mortgage('Hypotéka Beroun',row.berounOwned,row.berounPaymentMonthly,row.berounDebt)}
+    {mortgage('Úver na bývanie SK',row.homeOwned,row.homePaymentMonthly,row.homeDebt)}
+    {mortgage('Úver na vyplatenie sestry',row.familyOwned,row.familyPaymentMonthly,row.familyDebt)}
     <div className="sum"><dt>Výdavky spolu</dt><dd>{fmt(row.expensesMonthly)}</dd></div>
     <div className="final"><dt>Čo mesačne zostane</dt><dd className={row.cashFlowMonthly>=0?'pos':'neg'}>{fmt(row.cashFlowMonthly)}</dd></div>
   </dl></article>
@@ -143,7 +149,8 @@ export default function LifeCalculator(){
   useEffect(()=>localStorage.setItem(draftKey,JSON.stringify(inputs)),[inputs])
   useEffect(()=>localStorage.setItem(scenariosKey,JSON.stringify(scenarios)),[scenarios])
   const result=useMemo(()=>calculateLife(inputs),[inputs])
-  const last=result.years[result.years.length-1],afterMove=phaseRow(result,inputs.moveYear),retirement=phaseRow(result,inputs.stopWork?inputs.stopWorkYear:inputs.horizonYears)
+  const last=result.years[result.years.length-1],afterMove=phaseRow(result,inputs.moveYear),retirement=phaseRow(result,result.retirementWithinHorizon?inputs.stopWorkYear:inputs.horizonYears)
+  const retirementTitle=result.retirementWithinHorizon?'Po ukončení práce':'Koniec horizontu · práca pokračuje'
   const checkpointYears=new Set([0,1,inputs.moveYear,inputs.stopWork?inputs.stopWorkYear:-1,5,10,15,20,25,inputs.horizonYears])
   const checkpointRows=result.years.filter(row=>checkpointYears.has(row.year))
   const set=<K extends keyof LifeInputs>(key:K,value:LifeInputs[K])=>setInputs(current=>({...current,[key]:value}))
@@ -166,7 +173,7 @@ export default function LifeCalculator(){
         <article><span><Label>Hotovosť po horizonte</Label></span><strong className={last.cash<0?'neg':''}>{fmt(last.cash)}</strong><small>{inputs.horizonYears}. rok · bez výnosu hotovosti</small></article>
         <article><span><Label>Čisté imanie po horizonte</Label></span><strong>{fmt(last.netWorth)}</strong><small>hotovosť + majetok − dlhy</small></article>
         <article><span><Label>CF po presune</Label></span><strong className={afterMove.cashFlowMonthly>=0?'pos':'neg'}>{fmt(afterMove.cashFlowMonthly)}</strong><small>mesačne v {inputs.moveYear}. roku</small></article>
-        <article><span><Label>CF bez práce</Label></span><strong className={retirement.cashFlowMonthly>=0?'pos':'neg'}>{inputs.stopWork?fmt(retirement.cashFlowMonthly):'nevypnutá mzda'}</strong><small>{inputs.stopWork?`od ${inputs.stopWorkYear}. roku`:'zapnite ukončenie práce'}</small></article>
+        <article><span><Label>CF bez práce</Label></span><strong className={result.retirementWithinHorizon?(retirement.cashFlowMonthly>=0?'pos':'neg'):''}>{result.retirementWithinHorizon?fmt(retirement.cashFlowMonthly):'mimo horizontu'}</strong><small>{result.retirementWithinHorizon?`od ${inputs.stopWorkYear}. roku`:inputs.stopWork?'práca sa skončí až po horizonte':'ukončenie práce nie je zapnuté'}</small></article>
       </section>
 
       {result.warnings.length>0&&<section className="life-warnings">{result.warnings.map(w=><div key={w}><CircleAlert size={16}/><span>{w}</span></div>)}</section>}
@@ -201,9 +208,9 @@ export default function LifeCalculator(){
         </article>
       </section>
 
-      <section className="panel life-results"><div className="panel-head"><div><span>MESAČNÝ ŽIVOT</span><h2>Odkiaľ prídu peniaze a kam odídu</h2><p>Jednorazové predaje a nákupy sú uvedené osobitne v transakciách.</p></div></div><div className="life-phases-grid"><PhaseCard title="Dnes / prvý rok" row={phaseRow(result,1)} currency={currency} fx={inputs.fx}/><PhaseCard title="Po presune" row={afterMove} currency={currency} fx={inputs.fx}/><PhaseCard title="Po ukončení práce" row={retirement} currency={currency} fx={inputs.fx}/></div></section>
+      <section className="panel life-results"><div className="panel-head"><div><span>MESAČNÝ ŽIVOT</span><h2>Odkiaľ prídu peniaze a kam odídu</h2><p>Jednorazové predaje, nákupy a mimoriadne splátky sú uvedené osobitne v transakciách.</p></div></div><div className="life-phases-grid"><PhaseCard title="Dnes / prvý rok" row={phaseRow(result,1)} currency={currency} fx={inputs.fx}/><PhaseCard title="Po presune" row={afterMove} currency={currency} fx={inputs.fx}/><PhaseCard title={retirementTitle} row={retirement} currency={currency} fx={inputs.fx}/></div></section>
 
-      <section className="panel renter-panel"><div><span>ŽIVOT BEZ MZDY</span><h2>{!inputs.stopWork?'Ukončenie práce nie je zapnuté.':result.retirementGapMonthly===0?'Pravidelné príjmy pokrývajú modelované výdavky.':'Na život bez práce treba doplniť hotovostnú rezervu.'}</h2><p>Bez investičného výnosu: kalkulačka iba odpočítava budúce deficity od hotovosti.</p></div><div className="renter-kpis"><article><span><Label>Hotovosť pri ukončení práce</Label></span><b>{inputs.stopWork?fmt(result.cashAtRetirement):'—'}</b></article><article><span><Label>Mesačná potreba bez práce</Label></span><b>{inputs.stopWork?fmt(result.retirementGapMonthly):'—'}</b></article><article><span><Label>Potrebná hotovosť bez práce</Label></span><b>{inputs.stopWork?fmt(result.cashNeededAfterRetirement):'—'}</b></article><article><span><Label>Výdrž hotovosti</Label></span><b>{!inputs.stopWork?'—':result.runwayYears===null?'CF je nezáporné':`${result.runwayYears.toLocaleString('sk-SK',{maximumFractionDigits:1})} roka`}</b></article></div></section>
+      <section className="panel renter-panel"><div><span>ŽIVOT BEZ MZDY</span><h2>{!result.retirementWithinHorizon?inputs.stopWork?'Ukončenie práce je až za horizontom modelu.':'Ukončenie práce nie je zapnuté.':result.retirementGapMonthly===0?'Pravidelné príjmy pokrývajú modelované výdavky.':'Na život bez práce treba doplniť hotovostnú rezervu.'}</h2><p>Bez investičného výnosu: kalkulačka iba odpočítava budúce deficity od hotovosti.</p></div><div className="renter-kpis"><article><span><Label>Hotovosť pri ukončení práce</Label></span><b>{result.retirementWithinHorizon?fmt(result.cashAtRetirement):'—'}</b></article><article><span><Label>Mesačná potreba bez práce</Label></span><b>{result.retirementWithinHorizon?fmt(result.retirementGapMonthly):'—'}</b></article><article><span><Label>Potrebná hotovosť bez práce</Label></span><b>{result.retirementWithinHorizon?fmt(result.cashNeededAfterRetirement):'—'}</b></article><article><span><Label>Výdrž hotovosti</Label></span><b>{!result.retirementWithinHorizon?'—':result.runwayYears===null?'CF je nezáporné':`${result.runwayYears.toLocaleString('sk-SK',{maximumFractionDigits:1})} roka`}</b></article></div></section>
 
       <section className="panel life-timeline"><div className="panel-head"><div><span>ROČNÝ VÝVOJ</span><h2>Hotovosť, majetok a dlhy</h2><p>Hodnoty nehnuteľností a hotovosť sa nezvyšujú výnosom. Menia sa iba transakciami, príjmami, výdavkami a splácaním dlhov.</p></div></div><LifeChart result={result} currency={currency} fx={inputs.fx}/><YearTable rows={checkpointRows} fmt={fmt}/><details className="life-all-years"><summary>Ukázať každý rok</summary><YearTable rows={result.years} fmt={fmt}/></details></section>
 
@@ -223,8 +230,8 @@ function ScenarioComparison({scenarios,currency,fx,onLoad,onDelete}:{scenarios:S
     ['Čisté imanie po horizonte',r=>fmtRow(r,r.result.years.at(-1)!.netWorth)],
     ['Hotovosť pri presune',r=>fmtRow(r,r.result.cashAtMove)],
     ['CF po presune',r=>fmtRow(r,phaseRow(r.result,r.scenario.inputs.moveYear).cashFlowMonthly)],
-    ['CF bez práce',r=>r.scenario.inputs.stopWork?fmtRow(r,phaseRow(r.result,r.scenario.inputs.stopWorkYear).cashFlowMonthly):'mzda zostáva'],
-    ['Potrebná hotovosť bez práce',r=>r.scenario.inputs.stopWork?fmtRow(r,r.result.cashNeededAfterRetirement):'—'],
+    ['CF bez práce',r=>r.result.retirementWithinHorizon?fmtRow(r,phaseRow(r.result,r.scenario.inputs.stopWorkYear).cashFlowMonthly):'mimo horizontu'],
+    ['Potrebná hotovosť bez práce',r=>r.result.retirementWithinHorizon?fmtRow(r,r.result.cashNeededAfterRetirement):'—'],
     ['Prvý rok bez hotovosti',r=>r.result.firstNegativeYear===null?'nenastane':`${r.result.firstNegativeYear}. rok`]
   ]
   return <><section className="scenario-cards">{rows.map(row=>{const {scenario,result}=row;return <article className="panel" key={scenario.id}><span>ULOŽENÝ SCENÁR</span><h2>{scenario.name}</h2><strong className={result.years.at(-1)!.cash<0?'neg':'pos'}>{fmtRow(row,result.years.at(-1)!.cash)}</strong><small>hotovosť po {scenario.inputs.horizonYears} rokoch</small><div><button onClick={()=>onLoad(scenario)}>Načítať</button><button className="danger" onClick={()=>onDelete(scenario.id)}>Vymazať</button></div></article>})}</section><section className="panel compare-table life-compare-table"><table><thead><tr><th>Metrika</th>{rows.map(r=><th key={r.scenario.id}>{r.scenario.name}</th>)}</tr></thead><tbody>{metrics.map(([label,get])=><tr key={label}><th>{label}</th>{rows.map(r=><td key={r.scenario.id}>{get(r)}</td>)}</tr>)}</tbody></table></section></>

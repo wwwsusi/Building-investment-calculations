@@ -50,4 +50,27 @@ describe('samostatný životný model',()=>{
     const result=calculateLife(input)
     expect(result.years.at(-1)?.cash).toBe(100000)
   })
+
+  it('mimoriadnu čiastočnú splátku odpočíta z hotovosti a zníži dlh aj mesačnú splátku',()=>{
+    const input=clone()
+    input.horizonYears=1;input.initialCash=200000;input.stopWork=true;input.stopWorkYear=0;input.moveYear=0
+    input.prague={...input.prague,value:0,debt:100000,annualRate:0,monthlyPayment:1000,monthlyOperating:0,rentAfterMove:false,partialPayoff:true,partialPayoffYear:1,partialPayoffRate:.5}
+    input.beroun={...input.beroun,value:0,debt:0,monthlyPayment:0,monthlyOperating:0,rentAfterMove:false}
+    input.livingSk=0;input.housingSk=0
+    const result=calculateLife(input)
+    const payoff=result.transactions.find(t=>t.label.includes('Mimoriadna splátka'))!
+    expect(payoff.cashChange).toBe(-50000)
+    expect(result.years[1].praguePaymentMonthly).toBe(500)
+    expect(result.years[1].pragueDebt).toBe(44000)
+    expect(result.years[1].cash).toBe(144000)
+  })
+
+  it('označí, že ukončenie práce mimo horizontu ešte nenastalo',()=>{
+    const input=clone()
+    input.horizonYears=5;input.stopWork=true;input.stopWorkYear=10
+    const result=calculateLife(input)
+    expect(result.retirementWithinHorizon).toBe(false)
+    expect(result.years.at(-1)?.working).toBe(true)
+    expect(result.warnings.some(w=>w.includes('stále pracujete'))).toBe(true)
+  })
 })

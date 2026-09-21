@@ -14,6 +14,9 @@ export type ExistingHome = {
   salePrice:number
   saleCostRate:number
   mortgagePayoffRate:number
+  partialPayoff:boolean
+  partialPayoffYear:number
+  partialPayoffRate:number
 }
 
 export type NewHome = {
@@ -85,6 +88,14 @@ export type LifeYear = {
   berounPaymentMonthly:number
   homePaymentMonthly:number
   familyPaymentMonthly:number
+  pragueOwned:boolean
+  berounOwned:boolean
+  homeOwned:boolean
+  familyOwned:boolean
+  pragueDebt:number
+  berounDebt:number
+  homeDebt:number
+  familyDebt:number
   debtPaymentsMonthly:number
   expensesMonthly:number
   cashFlowMonthly:number
@@ -102,6 +113,7 @@ export type LifeResult = {
   cashNeededAfterRetirement:number
   retirementGapMonthly:number
   runwayYears:number|null
+  retirementWithinHorizon:boolean
   warnings:string[]
 }
 
@@ -122,8 +134,8 @@ export const lifeDefaults:LifeInputs={
   housingCz:0,
   housingSk:300,
   otherPassiveIncome:0,
-  prague:{label:'Praha',value:7000000/fx,debt:3120963/fx,annualRate:.0489,monthlyPayment:18748/fx,monthlyOperating:7000/fx,rentAfterMove:true,monthlyRent:23000/fx,sell:false,saleYear:5,salePrice:7000000/fx,saleCostRate:.03,mortgagePayoffRate:1},
-  beroun:{label:'Beroun',value:12000000/fx,debt:5870199/fx,annualRate:.0439,monthlyPayment:32263/fx,monthlyOperating:10000/fx,rentAfterMove:true,monthlyRent:25000/fx,sell:false,saleYear:5,salePrice:12000000/fx,saleCostRate:.03,mortgagePayoffRate:1},
+  prague:{label:'Praha',value:7000000/fx,debt:3120963/fx,annualRate:.0489,monthlyPayment:18748/fx,monthlyOperating:7000/fx,rentAfterMove:true,monthlyRent:23000/fx,sell:false,saleYear:5,salePrice:7000000/fx,saleCostRate:.03,mortgagePayoffRate:1,partialPayoff:false,partialPayoffYear:5,partialPayoffRate:.5},
+  beroun:{label:'Beroun',value:12000000/fx,debt:5870199/fx,annualRate:.0439,monthlyPayment:32263/fx,monthlyOperating:10000/fx,rentAfterMove:true,monthlyRent:25000/fx,sell:false,saleYear:5,salePrice:12000000/fx,saleCostRate:.03,mortgagePayoffRate:1,partialPayoff:false,partialPayoffYear:5,partialPayoffRate:.5},
   slovakHome:{buy:false,year:7,price:300000,purchaseCosts:0,cashContribution:60000,annualRate:.05,loanYears:20,monthlyOperating:300},
   familyHome:{acquire:false,year:5,value:120000,sisterPayout:60000,cashContribution:60000,annualRate:.05,loanYears:20,liveThere:false,monthlyOperating:300}
 }
@@ -134,7 +146,7 @@ export function normalizeLifeInputs(raw:unknown):LifeInputs{
   const source=raw&&typeof raw==='object'?raw as Partial<LifeInputs>:{}
   const property=(value:unknown,fallback:ExistingHome):ExistingHome=>{
     const v=value&&typeof value==='object'?value as Partial<ExistingHome>:{}
-    return {...fallback,...v,label:typeof v.label==='string'?v.label:fallback.label,sell:typeof v.sell==='boolean'?v.sell:fallback.sell,rentAfterMove:typeof v.rentAfterMove==='boolean'?v.rentAfterMove:fallback.rentAfterMove,saleYear:Math.round(clamp(Number(v.saleYear??fallback.saleYear),1,60)),mortgagePayoffRate:clamp(Number(v.mortgagePayoffRate??fallback.mortgagePayoffRate),0,1),saleCostRate:clamp(Number(v.saleCostRate??fallback.saleCostRate),0,1)}
+    return {...fallback,...v,label:typeof v.label==='string'?v.label:fallback.label,sell:typeof v.sell==='boolean'?v.sell:fallback.sell,rentAfterMove:typeof v.rentAfterMove==='boolean'?v.rentAfterMove:fallback.rentAfterMove,partialPayoff:typeof v.partialPayoff==='boolean'?v.partialPayoff:fallback.partialPayoff,saleYear:Math.round(clamp(Number(v.saleYear??fallback.saleYear),1,60)),mortgagePayoffRate:clamp(Number(v.mortgagePayoffRate??fallback.mortgagePayoffRate),0,1),saleCostRate:clamp(Number(v.saleCostRate??fallback.saleCostRate),0,1),partialPayoffYear:Math.round(clamp(Number(v.partialPayoffYear??fallback.partialPayoffYear),1,60)),partialPayoffRate:clamp(Number(v.partialPayoffRate??fallback.partialPayoffRate),0,1)}
   }
   const slovak={...lifeDefaults.slovakHome,...(source.slovakHome||{})}
   const family={...lifeDefaults.familyHome,...(source.familyHome||{})}
@@ -179,10 +191,19 @@ export function calculateLife(input:LifeInputs):LifeResult{
   let homeLoan:LoanState={balance:0,rate:i.slovakHome.annualRate,payment:0}
   let familyLoan:LoanState={balance:0,rate:i.familyHome.annualRate,payment:0}
   const initialProperty=i.prague.value+i.beroun.value
-  const years:LifeYear[]=[{year:0,location:i.moveYear===0?'Slovensko':'Česko',working:!i.stopWork||i.stopWorkYear>0,cash,propertyValue:initialProperty,debt:pragueLoan.balance+berounLoan.balance,netWorth:cash+initialProperty-pragueLoan.balance-berounLoan.balance,salaryMonthly:0,pragueRentMonthly:0,berounRentMonthly:0,otherIncomeMonthly:0,incomeMonthly:0,livingMonthly:0,housingMonthly:0,pragueCostMonthly:0,berounCostMonthly:0,propertyCostsMonthly:0,praguePaymentMonthly:0,berounPaymentMonthly:0,homePaymentMonthly:0,familyPaymentMonthly:0,debtPaymentsMonthly:0,expensesMonthly:0,cashFlowMonthly:0,annualBonus:0,transactionCash:0,netCashChange:0}]
+  const years:LifeYear[]=[{year:0,location:i.moveYear===0?'Slovensko':'Česko',working:!i.stopWork||i.stopWorkYear>0,cash,propertyValue:initialProperty,debt:pragueLoan.balance+berounLoan.balance,netWorth:cash+initialProperty-pragueLoan.balance-berounLoan.balance,salaryMonthly:0,pragueRentMonthly:0,berounRentMonthly:0,otherIncomeMonthly:0,incomeMonthly:0,livingMonthly:0,housingMonthly:0,pragueCostMonthly:0,berounCostMonthly:0,propertyCostsMonthly:0,praguePaymentMonthly:0,berounPaymentMonthly:0,homePaymentMonthly:0,familyPaymentMonthly:0,pragueOwned:true,berounOwned:true,homeOwned:false,familyOwned:false,pragueDebt:pragueLoan.balance,berounDebt:berounLoan.balance,homeDebt:0,familyDebt:0,debtPaymentsMonthly:0,expensesMonthly:0,cashFlowMonthly:0,annualBonus:0,transactionCash:0,netCashChange:0}]
 
   for(let year=1;year<=i.horizonYears;year++){
     let transactionCash=0
+    const makePartialPayoff=(home:ExistingHome,held:boolean,loan:LoanState)=>{
+      if(!held||!home.partialPayoff||home.partialPayoffYear!==year||loan.balance<=0)return
+      const original=loan.balance
+      const payoff=Math.min(original,original*home.partialPayoffRate)
+      cash-=payoff;transactionCash-=payoff
+      loan.balance=Math.max(0,original-payoff)
+      loan.payment=original>0?loan.payment*(loan.balance/original):0
+      transactions.push({year,label:`Mimoriadna splátka: ${home.label}`,cashChange:-payoff,detail:`Z hotovosti sa splatí ${(home.partialPayoffRate*100).toFixed(0)} % aktuálnej hypotéky: ${payoff.toFixed(0)} EUR. Zostatok je ${loan.balance.toFixed(0)} EUR; model primerane zníži mesačnú splátku.`})
+    }
     const sell=(home:ExistingHome,held:boolean,loan:LoanState)=>{
       const cost=home.salePrice*home.saleCostRate
       const payoff=Math.min(loan.balance,loan.balance*home.mortgagePayoffRate)
@@ -196,6 +217,8 @@ export function calculateLife(input:LifeInputs):LifeResult{
       if(loan.balance>1)warnings.push(`${home.label}: po predaji v ${year}. roku zostáva dlh ${loan.balance.toFixed(0)} EUR. Overte súhlas banky a ďalšie zabezpečenie.`)
       return false
     }
+    makePartialPayoff(i.prague,pragueHeld,pragueLoan)
+    makePartialPayoff(i.beroun,berounHeld,berounLoan)
     if(pragueHeld&&i.prague.sell&&i.prague.saleYear===year)pragueHeld=sell(i.prague,pragueHeld,pragueLoan)
     if(berounHeld&&i.beroun.sell&&i.beroun.saleYear===year)berounHeld=sell(i.beroun,berounHeld,berounLoan)
 
@@ -240,19 +263,21 @@ export function calculateLife(input:LifeInputs):LifeResult{
     cash+=annualOperatingCash
     const propertyValue=(pragueHeld?i.prague.value:0)+(berounHeld?i.beroun.value:0)+(homeHeld?i.slovakHome.price:0)+(familyHeld?i.familyHome.value:0)
     const debt=pragueLoan.balance+berounLoan.balance+homeLoan.balance+familyLoan.balance
-    years.push({year,location:onSk?'Slovensko':'Česko',working,cash,propertyValue,debt,netWorth:cash+propertyValue-debt,salaryMonthly,pragueRentMonthly,berounRentMonthly,otherIncomeMonthly,incomeMonthly,livingMonthly,housingMonthly,pragueCostMonthly,berounCostMonthly,propertyCostsMonthly,praguePaymentMonthly,berounPaymentMonthly,homePaymentMonthly,familyPaymentMonthly,debtPaymentsMonthly,expensesMonthly,cashFlowMonthly,annualBonus,transactionCash,netCashChange:transactionCash+annualOperatingCash})
+    years.push({year,location:onSk?'Slovensko':'Česko',working,cash,propertyValue,debt,netWorth:cash+propertyValue-debt,salaryMonthly,pragueRentMonthly,berounRentMonthly,otherIncomeMonthly,incomeMonthly,livingMonthly,housingMonthly,pragueCostMonthly,berounCostMonthly,propertyCostsMonthly,praguePaymentMonthly,berounPaymentMonthly,homePaymentMonthly,familyPaymentMonthly,pragueOwned:pragueHeld,berounOwned:berounHeld,homeOwned:homeHeld,familyOwned:familyHeld,pragueDebt:pragueLoan.balance,berounDebt:berounLoan.balance,homeDebt:homeLoan.balance,familyDebt:familyLoan.balance,debtPaymentsMonthly,expensesMonthly,cashFlowMonthly,annualBonus,transactionCash,netCashChange:transactionCash+annualOperatingCash})
   }
 
   const firstNegativeYear=years.find(row=>row.cash<0)?.year??null
   if(firstNegativeYear!==null)warnings.unshift(`Hotovosť klesne pod nulu v ${firstNegativeYear}. roku. Scenár potrebuje viac zdrojov, nižšie výdavky alebo odklad transakcie.`)
   const move=phaseYear(years,i.moveYear)
-  const retirementIndex=i.stopWork?Math.min(i.horizonYears,Math.max(0,i.stopWorkYear)):i.horizonYears
+  const retirementWithinHorizon=i.stopWork&&i.stopWorkYear<=i.horizonYears
+  if(i.stopWork&&!retirementWithinHorizon)warnings.push(`Ukončenie práce je nastavené na ${i.stopWorkYear}. rok, ale model končí v ${i.horizonYears}. roku. V zobrazenom horizonte preto stále pracujete.`)
+  const retirementIndex=retirementWithinHorizon?Math.max(0,i.stopWorkYear):i.horizonYears
   const beforeRetirement=phaseYear(years,Math.max(0,retirementIndex-1))
   const retirement=phaseYear(years,retirementIndex)
   let cumulative=0,minCumulative=0
-  if(i.stopWork)for(const row of years.filter(row=>row.year>=retirementIndex)){cumulative+=row.netCashChange;minCumulative=Math.min(minCumulative,cumulative)}
-  const cashNeededAfterRetirement=i.stopWork?Math.max(0,-minCumulative):0
-  const retirementGapMonthly=i.stopWork?Math.max(0,-retirement.cashFlowMonthly):0
-  const runwayYears=i.stopWork&&retirementGapMonthly>0?Math.max(0,beforeRetirement.cash)/(retirementGapMonthly*12):null
-  return {years,transactions,firstNegativeYear,cashAtMove:move.cash,cashAtRetirement:beforeRetirement.cash,cashNeededAfterRetirement,retirementGapMonthly,runwayYears,warnings:[...new Set(warnings)]}
+  if(retirementWithinHorizon)for(const row of years.filter(row=>row.year>=retirementIndex)){cumulative+=row.netCashChange;minCumulative=Math.min(minCumulative,cumulative)}
+  const cashNeededAfterRetirement=retirementWithinHorizon?Math.max(0,-minCumulative):0
+  const retirementGapMonthly=retirementWithinHorizon?Math.max(0,-retirement.cashFlowMonthly):0
+  const runwayYears=retirementWithinHorizon&&retirementGapMonthly>0?Math.max(0,beforeRetirement.cash)/(retirementGapMonthly*12):null
+  return {years,transactions,firstNegativeYear,cashAtMove:move.cash,cashAtRetirement:beforeRetirement.cash,cashNeededAfterRetirement,retirementGapMonthly,runwayYears,retirementWithinHorizon,warnings:[...new Set(warnings)]}
 }
