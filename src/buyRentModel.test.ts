@@ -49,6 +49,27 @@ describe('buy vs rent model',()=>{
   expect(accelerated.interestSaved).toBeGreaterThan(0)
  })
 
+ it('stops all debt service after payoff while retaining the property',()=>{
+  const result=calculateBuyRent({...clean,annualRate:.065,loanYears:15,annualExtraPayment:10000})
+  expect(result.payoffMonth).not.toBeNull()
+  const payoff=result.months[result.payoffMonth!]
+  const after=result.months[result.payoffMonth!+1]
+  expect(payoff.loanBalance).toBe(0)
+  expect(after.regularPayment).toBe(0)
+  expect(after.extraPayment).toBe(0)
+  expect(after.loanBalance).toBe(0)
+  expect(after.equity).toBeCloseTo(after.propertyValue,6)
+ })
+
+ it('lets BUY invest its lower monthly outflow after the loan is paid',()=>{
+  const result=calculateBuyRent({...clean,annualRate:0,loanYears:1,rentMonthly:1000,includeOpportunityCost:false})
+  const payoff=result.payoffMonth!
+  const atPayoff=result.months[payoff]
+  const after=result.months[payoff+1]
+  expect(after.regularPayment).toBe(0)
+  expect(after.buyInvestment-atPayoff.buyInvestment).toBeCloseTo(1000,6)
+ })
+
  it('applies only the ownership share of CAPEX in its selected year',()=>{
   const result=calculateBuyRent({...clean,capex:[{id:'roof',label:'Strecha',year:3,totalCost:20000,share:.4}]})
   expect(atYear(result,2).cumulativeCapex).toBe(0)

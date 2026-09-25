@@ -20,6 +20,9 @@ export default function BuyRentCalculator(){
  useEffect(()=>localStorage.setItem(STORAGE,JSON.stringify(inputs)),[inputs])
  const modelInputs=useMemo(()=>normalizeBuyRentInputs({...inputs,horizonYears:Math.max(15,horizon)}),[inputs,horizon])
  const result=useMemo(()=>calculateBuyRent(modelInputs),[modelInputs])
+ const lifecycleInputs=useMemo(()=>({...modelInputs,horizonYears:Math.max(modelInputs.horizonYears,modelInputs.loanYears)}),[modelInputs])
+ const lifecycleResult=useMemo(()=>calculateBuyRent(lifecycleInputs),[lifecycleInputs])
+ const noExtraResult=useMemo(()=>calculateBuyRent({...lifecycleInputs,annualExtraPayment:0}),[lifecycleInputs])
  const current=atYear(result,horizon)
  const scenarios=useMemo(()=>[0,10000,20000].map(extra=>({extra,result:calculateBuyRent({...modelInputs,annualExtraPayment:extra})})),[modelInputs])
  const update=<K extends keyof BuyRentInputs>(key:K,value:BuyRentInputs[K])=>setInputs(old=>normalizeBuyRentInputs({...old,[key]:value}))
@@ -31,6 +34,11 @@ export default function BuyRentCalculator(){
  const commonMonthly=inputs.commonUtilitiesMonthly+inputs.waterSewerMonthly+inputs.heatingMonthly+inputs.otherCommonMonthly
  const buyMonthly=(result.months[1]?.regularPayment||0)+ownershipMonthly+inputs.reserveMonthly+commonMonthly+inputs.annualExtraPayment/12
  const rentMonthly=inputs.rentMonthly+commonMonthly
+ const payoffPoint=lifecycleResult.payoffMonth===null?null:lifecycleResult.months[lifecycleResult.payoffMonth]
+ const afterPayoffPoint=lifecycleResult.payoffMonth===null?null:lifecycleResult.months[Math.min(lifecycleResult.months.length-1,lifecycleResult.payoffMonth+1)]
+ const afterPayoffBuyMonthly=ownershipMonthly+inputs.reserveMonthly+commonMonthly
+ const rentAtPayoffMonthly=(afterPayoffPoint?.monthlyRent??inputs.rentMonthly)+commonMonthly
+ const principalCreated=Math.max(0,inputs.loan-current.loanBalance)
  return <div className="bvr-page">
   <section className="bvr-head">
    <div><span>ROZHODOVACÍ MODEL LADY FITNESS</span><h1>Kúpa priestoru vs nájom</h1><p>Porovnanie dvoch ciest pri rovnakom počiatočnom kapitále a rovnakom mesačnom rozpočte.</p></div>
@@ -77,6 +85,23 @@ export default function BuyRentCalculator(){
   {result.financingBalance<0&&<div className="bvr-warning"><CircleAlert size={17}/><span>Na kúpnu cenu chýba <b>{eur.format(-result.financingBalance)}</b>. Zvýšte úver alebo vlastné peniaze.</span></div>}
 
   <section className="bvr-monthly panel"><div><span>DNEŠNÝ PRIEMERNÝ MESAČNÝ CASH FLOW</span><h2>Koľko odchádza z účtu</h2><p>BUY zahŕňa splátku, priemer mimoriadnej splátky, fixné náklady, rezervu a spoločné energie.</p></div><div><article><small>BUY</small><b>{eur.format(buyMonthly)} / mes.</b><em>splátka {eur.format(result.months[1]?.regularPayment||0)} + extra {eur.format(inputs.annualExtraPayment/12)} + ostatné {eur.format(ownershipMonthly+inputs.reserveMonthly+commonMonthly)}</em></article><article><small>RENT</small><b>{eur.format(rentMonthly)} / mes.</b><em>nájom {eur.format(inputs.rentMonthly)} + energie {eur.format(commonMonthly)}</em></article><i>= rozdiel {eur.format(Math.abs(buyMonthly-rentMonthly))} / mes. investuje lacnejšia cesta</i></div></section>
+
+  <section className="bvr-payoff panel">
+   <div className="bvr-payoff-head"><div><span>VLASTNÍCTVO, NIE IBA SÚČET PLATIEB</span><h2>Po splatení úveru</h2><p>{lifecycleResult.payoffMonth===null?'Úver nie je v zadanom období úplne splatený. Predĺžte horizont alebo upravte financovanie.':<>Pri aktuálnej mimoriadnej splátke bude úver splatený približne za <b>{formatMonths(lifecycleResult.payoffMonth)}</b>. Od nasledujúceho mesiaca je riadna aj mimoriadna splátka <b>0 €</b> a priestor zostáva váš.</>}</p></div><div className="bvr-payoff-compare"><small>Bez mimoriadnych splátok</small><b>{formatMonths(noExtraResult.payoffMonth)}</b><small>S {eur.format(inputs.annualExtraPayment)} ročne</small><b>{formatMonths(lifecycleResult.payoffMonth)}</b></div></div>
+   <div className="bvr-payoff-flow">
+    <article><small>1 · PRED SPLATENÍM</small><strong>{eur.format(buyMonthly)} / mes.</strong><p>Priemerný odtok BUY dnes: úver, priemer extra splátky, vlastnícke náklady, rezerva a spoločné energie.</p></article>
+    <ArrowRight size={18}/>
+    <article className="milestone"><small>2 · V OKAMIHU SPLATENIA</small><strong>{payoffPoint?eur.format(payoffPoint.equity):'—'}</strong><p>Hodnota priestoru {payoffPoint?eur.format(payoffPoint.propertyValue):'—'} · dlh {payoffPoint?eur.format(payoffPoint.loanBalance):'—'} · nevyčerpaná rezerva {payoffPoint?eur.format(payoffPoint.reserveBalance):'—'}.</p></article>
+    <ArrowRight size={18}/>
+    <article className="owned"><small>3 · PO SPLATENÍ</small><strong>{afterPayoffPoint?`${eur.format(afterPayoffBuyMonthly)} / mes.`:'—'}</strong><p>Splátka 0 € + extra 0 €. Zostávajú iba náklady vlastníctva {eur.format(ownershipMonthly)}, rezerva {eur.format(inputs.reserveMonthly)} a spoločné energie {eur.format(commonMonthly)}.</p></article>
+   </div>
+   {afterPayoffPoint&&<div className="bvr-payoff-after"><b>V tom čase:</b> BUY odchádza približne {eur.format(afterPayoffBuyMonthly)} mesačne, kým RENT pokračuje sumou približne {eur.format(rentAtPayoffMonthly)} mesačne. Rozdiel {eur.format(Math.max(0,rentAtPayoffMonthly-afterPayoffBuyMonthly))} môže po splatení investovať vlastník.</div>}
+   <div className="bvr-payoff-final"><Landmark size={20}/><div><small>STAV V ROKU {horizon}</small><b>Vlastníte priestor v hodnote {eur.format(current.propertyValue)}, dlh je {eur.format(current.loanBalance)} a váš vlastný kapitál je {eur.format(current.equity)}.</b><p>K tomu model pripočítava nevyčerpanú rezervu {eur.format(current.reserveBalance)} a investovaný prebytok BUY {eur.format(current.buyInvestment)}.</p></div></div>
+  </section>
+
+  <section className="bvr-money-path panel"><div className="bvr-section-title"><div><span>KAM ODIŠLI PENIAZE</span><h2>Splátka istiny sa nestratila</h2></div></div><div><article><small>PREMENENÉ NA VLASTNÝ KAPITÁL</small><b>{eur.format(principalCreated)}</b><p>Splatená istina znižuje dlh a zvyšuje váš podiel na nehnuteľnosti.</p></article><article><small>MAJETOK, KTORÝ VÁM ZOSTÁVA</small><b>{eur.format(current.equity+current.reserveBalance+current.buyInvestment)}</b><p>Equity + nevyčerpaná rezerva + investovaný mesačný prebytok.</p></article><article><small>SPOTREBOVANÉ NÁKLADY</small><b>{eur.format(current.cumulativeOwnershipCosts)}</b><p>Úrok, náklady na kúpu, vlastnícke náklady, minutá rezerva a zadaný CAPEX.</p></article></div></section>
+
+  <section className="panel bvr-table-panel"><div className="bvr-section-title"><div><span>ŽIVOTNÝ CYKLUS ÚVERU</span><h2>Čo sa zmení po doplatení</h2></div></div><PayoffTable result={lifecycleResult} ownershipMonthly={ownershipMonthly} reserveMonthly={inputs.reserveMonthly} commonMonthly={commonMonthly}/></section>
 
   <section className="bvr-kpis">
    <Metric icon={Landmark} label={`Hodnota o ${horizon} r.`} value={eur.format(current.propertyValue)} note={`rast ${pct(inputs.propertyGrowth)} ročne`} tip="Odhad ceny pri zadanom raste; nejde o garantovanú trhovú hodnotu."/>
@@ -133,6 +158,20 @@ function AdvancedResults({inputs,result,scenarios,sensitivityExtra,setSensitivit
   <section className="panel bvr-sensitivity"><div className="bvr-section-title"><div><span>CITLIVOSŤ VÝSLEDKU</span><h2>Kedy vyhráva kúpa</h2></div><div className="bvr-tabs">{[0,10000,20000].map(x=><button className={sensitivityExtra===x?'on':''} onClick={()=>setSensitivityExtra(x)} key={x}>{eur.format(x)}/rok</button>)}</div></div><div className="bvr-scroll"><table><thead><tr><th>Rast nájmu ↓ / rast ceny →</th>{growths.map(g=><th key={g}>{pct(g)}</th>)}</tr></thead><tbody>{rentGrowths.map(rg=><tr key={rg}><th>{pct(rg)}</th>{growths.map(pg=>{const r=calculateBuyRent({...inputs,annualExtraPayment:sensitivityExtra,propertyGrowth:pg,rentGrowth:rg});const advantage=atYear(r,year).advantage;return <td className={advantage>=0?'pos':'neg'} key={pg}>{advantage>=0?'+':''}{eur.format(advantage)}</td>})}</tr>)}</tbody></table></div><p className="bvr-note">Bunky ukazujú rozdiel čistého majetku BUY − RENT + INVEST v roku {year}. Zelená znamená výhodu kúpy.</p></section>
   <section className="bvr-story panel"><ArrowRight size={18}/><div><b>Rozhodovací záver podľa aktuálnych vstupov</b><p>Za {year} rokov bude vlastný kapitál v priestore {eur.format(current.equity)}. Nájom zaplatený za rovnaké obdobie dosiahne {eur.format(current.cumulativeRent)}. Po započítaní alternatívneho výnosu, vlastníckych nákladov, CAPEX a investovania mesačného rozdielu je {current.advantage>=0?'kúpa':'nájom + investovanie'} vpredu o {eur.format(Math.abs(current.advantage))}. Najcitlivejšie predpoklady sú rast hodnoty, rast nájmu a alternatívny výnos.</p></div></section>
  </>
+}
+
+function formatMonths(months:number|null){
+ if(months===null)return 'mimo modelovaného obdobia'
+ if(months===0)return 'bez úveru'
+ const years=Math.floor(months/12),rest=months%12
+ return [years?`${years} ${years===1?'rok':years<5?'roky':'rokov'}`:'',rest?`${rest} mes.`:''].filter(Boolean).join(' ')
+}
+
+function PayoffTable({result,ownershipMonthly,reserveMonthly,commonMonthly}:{result:ReturnType<typeof calculateBuyRent>;ownershipMonthly:number;reserveMonthly:number;commonMonthly:number}){
+ const payoff=result.payoffMonth
+ const indexes=payoff===null?[1,result.months.length-1]:Array.from(new Set([1,Math.max(1,payoff-1),payoff,Math.min(result.months.length-1,payoff+1),result.months.length-1]))
+ const rows=indexes.map(index=>result.months[index]).filter(Boolean)
+ return <><div className="bvr-scroll"><table><thead><tr><th>Fáza</th><th>Čas</th><th>Riadna splátka</th><th>Mimoriadna splátka</th><th>BUY odtok v mesiaci</th><th>RENT odtok</th><th>Hodnota</th><th>Dlh</th><th>Equity</th></tr></thead><tbody>{rows.map(point=>{const phase=payoff===null?'Úver pokračuje':point.month<payoff?'Pred splatením':point.month===payoff?'Doplatenie':'Po splatení';const buyOutflow=point.regularPayment+point.extraPayment+ownershipMonthly+reserveMonthly+commonMonthly;const rentOutflow=point.monthlyRent+commonMonthly;return <tr className={phase==='Po splatení'?'bvr-paid-row':''} key={point.month}><th>{phase}</th><td>{point.month===0?'štart':`${Math.floor(point.month/12)} r. ${point.month%12} mes.`}</td><td>{eur.format(point.regularPayment)}</td><td>{eur.format(point.extraPayment)}</td><td>{eur.format(buyOutflow)}</td><td>{eur.format(rentOutflow)}</td><td>{eur.format(point.propertyValue)}</td><td>{eur.format(point.loanBalance)}</td><td>{eur.format(point.equity)}</td></tr>})}</tbody></table></div><p className="bvr-note">Tabuľka používa skutočnú platbu v danom mesiaci. Preto môže byť mesiac doplatenia vyšší o poslednú mimoriadnu splátku; od nasledujúceho mesiaca sú obe splátky nulové.</p></>
 }
 
 function Field({label,tip,status,value,unit,onChange,disabled=false,step=1,min=0,max}:{label:string;tip?:string;status?:InputStatus;value:number;unit:string;onChange:(v:number)=>void;disabled?:boolean;step?:number;min?:number;max?:number}){return <label className={`bvr-field ${disabled?'disabled':''}`}><span>{label}{tip&&<Tip text={tip}/>} {status&&<Status value={status}/>}</span><div><input type="number" value={Number.isFinite(value)?value:0} step={step} min={min} max={max} disabled={disabled} onChange={e=>onChange(Number(e.target.value))}/><b>{unit}</b></div></label>}
