@@ -39,6 +39,9 @@ export default function BuyRentCalculator(){
  const afterPayoffBuyMonthly=ownershipMonthly+inputs.reserveMonthly+commonMonthly
  const rentAtPayoffMonthly=(afterPayoffPoint?.monthlyRent??inputs.rentMonthly)+commonMonthly
  const principalCreated=Math.max(0,inputs.loan-current.loanBalance)
+ const payoffYear=lifecycleResult.payoffMonth===null?null:Math.ceil(lifecycleResult.payoffMonth/12)
+ const chartYears=Array.from(new Set([0,1,5,10,payoffYear,horizon].filter((year):year is number=>year!==null&&year<=Math.max(horizon,payoffYear??0)))).sort((a,b)=>a-b)
+ const chartPoints=chartYears.map(year=>atYear(lifecycleResult,year))
  return <div className="bvr-page">
   <section className="bvr-head">
    <div><span>ROZHODOVACÍ MODEL LADY FITNESS</span><h1>Kúpa priestoru vs nájom</h1><p>Porovnanie dvoch ciest pri rovnakom počiatočnom kapitále a rovnakom mesačnom rozpočte.</p></div>
@@ -102,6 +105,22 @@ export default function BuyRentCalculator(){
   <section className="bvr-money-path panel"><div className="bvr-section-title"><div><span>KAM ODIŠLI PENIAZE</span><h2>Splátka istiny sa nestratila</h2></div></div><div><article><small>PREMENENÉ NA VLASTNÝ KAPITÁL</small><b>{eur.format(principalCreated)}</b><p>Splatená istina znižuje dlh a zvyšuje váš podiel na nehnuteľnosti.</p></article><article><small>MAJETOK, KTORÝ VÁM ZOSTÁVA</small><b>{eur.format(current.equity+current.reserveBalance+current.buyInvestment)}</b><p>Equity + nevyčerpaná rezerva + investovaný mesačný prebytok.</p></article><article><small>SPOTREBOVANÉ NÁKLADY</small><b>{eur.format(current.cumulativeOwnershipCosts)}</b><p>Úrok, náklady na kúpu, vlastnícke náklady, minutá rezerva a zadaný CAPEX.</p></article></div></section>
 
   <section className="panel bvr-table-panel"><div className="bvr-section-title"><div><span>ŽIVOTNÝ CYKLUS ÚVERU</span><h2>Čo sa zmení po doplatení</h2></div></div><PayoffTable result={lifecycleResult} ownershipMonthly={ownershipMonthly} reserveMonthly={inputs.reserveMonthly} commonMonthly={commonMonthly}/></section>
+
+  <section className="bvr-extra-impact panel">
+   <div className="bvr-section-title"><div><span>MIMORIADNE SPLÁTKY</span><h2>Kedy úver skončí a čo sa zmení</h2><p>Ročná mimoriadna splátka sa pripočíta k pravidelným splátkam, znižuje istinu a skracuje dobu úveru.</p></div></div>
+   <div className="bvr-extra-kpis">
+    <article><small>MIMORIADNA SPLÁTKA</small><b>{eur.format(inputs.annualExtraPayment)} / rok</b><p>V priemernom mesačnom rozpočte {eur.format(inputs.annualExtraPayment/12)}.</p></article>
+    <article><small>DOPLATENIE S EXTRA</small><b>{formatMonths(lifecycleResult.payoffMonth)}</b><p>Potom sú riadna aj mimoriadna splátka 0 €.</p></article>
+    <article><small>DOPLATENIE BEZ EXTRA</small><b>{formatMonths(noExtraResult.payoffMonth)}</b><p>Rozdiel oproti aktívnemu scenáru.</p></article>
+    <article><small>UŠETRENÝ ÚROK</small><b>{eur.format(lifecycleResult.interestSaved)}</b><p>Rozdiel úrokov oproti splácaniu bez extra platieb.</p></article>
+    <article><small>POKLES ODTOKU PO SPLATENÍ</small><b>{eur.format(Math.max(0,buyMonthly-afterPayoffBuyMonthly))} / mes.</b><p>Z {eur.format(buyMonthly)} na {eur.format(afterPayoffBuyMonthly)} mesačne.</p></article>
+   </div>
+  </section>
+
+  <section className="bvr-bar-charts">
+   <GroupedBarChart title="Mesačný cash flow pred a po splatení" subtitle="BUY pred splatením používa priemer ročnej mimoriadnej splátky; RENT je nájom v roku doplatenia." categories={['BUY pred splatením','BUY po splatení','RENT v roku splatenia']} series={[{name:'Mesačný odtok',color:'#176846',values:[buyMonthly,afterPayoffBuyMonthly,rentAtPayoffMonthly]}]} directValues/>
+   <GroupedBarChart title="Čo vlastníte a dlhujete po rokoch" subtitle="Hodnota priestoru nie je to isté ako equity: equity = hodnota priestoru mínus zostávajúci úver." categories={chartYears.map(year=>year===0?'Dnes':`${year}. rok`)} series={[{name:'Hodnota priestoru',color:'#176846',values:chartPoints.map(point=>point.propertyValue)},{name:'Zostatok úveru',color:'#bb705c',values:chartPoints.map(point=>point.loanBalance)},{name:'BUY equity',color:'#7d9c35',values:chartPoints.map(point=>point.equity)},{name:'RENT + INVEST majetok',color:'#71829a',values:chartPoints.map(point=>point.rentWealth)}]}/>
+  </section>
 
   <section className="bvr-kpis">
    <Metric icon={Landmark} label={`Hodnota o ${horizon} r.`} value={eur.format(current.propertyValue)} note={`rast ${pct(inputs.propertyGrowth)} ročne`} tip="Odhad ceny pri zadanom raste; nejde o garantovanú trhovú hodnotu."/>
@@ -182,6 +201,16 @@ function Metric({icon:Icon,label,value,note,tip,tone}:{icon:typeof Landmark;labe
 function Ledger({rows}:{rows:[string,number,('sum'|'total')?][]}){return <dl className="bvr-ledger">{rows.map(([label,value,kind],index)=><div className={kind||''} key={`${label}-${index}`}><dt>{label}</dt><dd className={value<0?'neg':''}>{value<0?'− ':''}{eur.format(Math.abs(value))}</dd></div>)}</dl>}
 function ComparisonTable({result,years}:{result:ReturnType<typeof calculateBuyRent>;years:number[]}){return <div className="bvr-scroll"><table><thead><tr><th>Ukazovateľ</th>{years.map(y=><th key={y}>{y}. rok</th>)}</tr></thead><tbody><TableRow label="Hodnota nehnuteľnosti" values={years.map(y=>atYear(result,y).propertyValue)}/><TableRow label="Zostatok úveru" values={years.map(y=>atYear(result,y).loanBalance)}/><TableRow label="Vlastný kapitál" values={years.map(y=>atYear(result,y).equity)}/><TableRow label="Zaplatený nájom" values={years.map(y=>atYear(result,y).cumulativeRent)}/><TableRow label="Čistý majetok BUY" values={years.map(y=>atYear(result,y).buyWealth)} strong/><TableRow label="Čistý majetok RENT + INVEST" values={years.map(y=>atYear(result,y).rentWealth)} strong/><TableRow label="Rozdiel BUY − RENT" values={years.map(y=>atYear(result,y).advantage)} signed strong/></tbody></table></div>}
 function TableRow({label,values,strong,signed}:{label:string;values:number[];strong?:boolean;signed?:boolean}){return <tr className={strong?'strong':''}><th>{label}</th>{values.map((v,i)=><td className={signed?(v>=0?'pos':'neg'):''} key={i}>{signed&&v>=0?'+':''}{eur.format(v)}</td>)}</tr>}
+
+type BarSeries={name:string;color:string;values:number[]}
+function GroupedBarChart({title,subtitle,categories,series,directValues=false}:{title:string;subtitle:string;categories:string[];series:BarSeries[];directValues?:boolean}){
+ const width=820,height=300,pad={l:62,r:18,t:directValues?34:20,b:54},allValues=series.flatMap(item=>item.values),max=Math.max(1,...allValues)*1.12
+ const plotWidth=width-pad.l-pad.r,plotHeight=height-pad.t-pad.b,groupWidth=plotWidth/Math.max(1,categories.length),barGap=3
+ const barWidth=Math.min(34,Math.max(8,(groupWidth-18)/Math.max(1,series.length)-barGap))
+ const y=(value:number)=>pad.t+(1-value/max)*plotHeight
+ const ticks=[0,.25,.5,.75,1]
+ return <article className="panel bvr-bar-chart"><h2>{title}</h2><p>{subtitle}</p><div className="bvr-legend">{series.map(item=><span key={item.name}><i style={{background:item.color}}/>{item.name}</span>)}</div><div className="bvr-chart-scroll"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>{ticks.map(t=>{const value=max*(1-t),yy=pad.t+t*plotHeight;return <g key={t}><line x1={pad.l} x2={width-pad.r} y1={yy} y2={yy} stroke="var(--line)"/><text x={pad.l-9} y={yy+3} textAnchor="end">{compact(value)}</text></g>})}{categories.map((category,index)=>{const barsWidth=series.length*(barWidth+barGap)-barGap,start=pad.l+index*groupWidth+(groupWidth-barsWidth)/2;return <g key={category}>{series.map((item,seriesIndex)=>{const value=item.values[index]??0,x=start+seriesIndex*(barWidth+barGap),yy=y(value),barHeight=Math.max(0,pad.t+plotHeight-yy);return <g key={item.name}><rect x={x} y={yy} width={barWidth} height={barHeight} rx="3" fill={item.color}><title>{category} · {item.name}: {eur.format(value)}</title></rect>{directValues&&<text className="bar-value" x={x+barWidth/2} y={Math.max(12,yy-6)} textAnchor="middle">{eur.format(value)}</text>}</g>})}<text className="category-label" x={pad.l+index*groupWidth+groupWidth/2} y={height-19} textAnchor="middle">{category}</text></g>})}</svg></div></article>
+}
 
 type Series=[string,number[],string]
 function Chart({title,subtitle,series,months}:{title:string;subtitle:string;series:Series[];months:BuyRentMonth[]}){
