@@ -6,9 +6,10 @@ import { calculateOperations, calculatePurchase } from './calculator'
 import type { OperationsInputs, PurchaseInputs } from './calculator'
 import type { Inputs, Result, VariantId } from './types'
 import LifeCalculator from './LifeCalculator'
+import BuyRentCalculator from './BuyRentCalculator'
 
-type Page='dashboard'|'variants'|'compare'|'life-calculator'|'calculator'|'inputs'|'fire'|'stress'|'glossary'|'variant'
-const nav=[['dashboard','Prehľad',BarChart3],['variants','Varianty',Landmark],['compare','Porovnanie',Scale],['life-calculator','Život',Gauge],['calculator','Budova',WalletCards],['inputs','Vstupy',Settings2],['fire','FIRE',Flame],['stress','Stres testy',ShieldCheck],['glossary','Slovník',Info]] as const
+type Page='dashboard'|'variants'|'compare'|'life-calculator'|'calculator'|'buy-vs-rent'|'inputs'|'fire'|'stress'|'glossary'|'variant'
+const nav=[['dashboard','Prehľad',BarChart3],['variants','Varianty',Landmark],['compare','Porovnanie',Scale],['life-calculator','Život',Gauge],['calculator','Budova',WalletCards],['buy-vs-rent','Kúpa vs nájom',Scale],['inputs','Vstupy',Settings2],['fire','FIRE',Flame],['stress','Stres testy',ShieldCheck],['glossary','Slovník',Info]] as const
 const route=()=>{const p=location.hash.startsWith('#/')?location.hash.slice(1):'/';const m=p.match(/^\/variant\/(\d)$/);return m?{page:'variant' as Page,id:Number(m[1]) as VariantId}:{page:(p==='/'?'dashboard':p.slice(1)) as Page,id:undefined}}
 const navigate=(path:string)=>{if(location.hash.slice(1)===path)dispatchEvent(new HashChangeEvent('hashchange'));else location.hash=path}
 const sanitizeInputs=(raw:unknown):Inputs=>{const source=raw&&typeof raw==='object'?raw as Record<string,unknown>:{};return Object.fromEntries((Object.keys(defaults) as (keyof Inputs)[]).map(key=>{const fallback=defaults[key],candidate=source[key];if(typeof fallback==='boolean')return [key,typeof candidate==='boolean'?candidate:fallback];const value=typeof candidate==='number'&&Number.isFinite(candidate)?Math.max(0,candidate):fallback;return [key,inputMeta[key].percent?Math.min(1,value):value]})) as Inputs}
@@ -28,13 +29,14 @@ function App(){
     <header><button className="brand" onClick={()=>navigate('/')}><span className="brandmark">S</span><span>Sloboda<small>finančný kompas</small></span></button><nav>{nav.map(([id,label,Icon])=><button key={id} className={where.page===id||(id==='variants'&&where.page==='variant')?'active':''} onClick={()=>navigate(id==='dashboard'?'/':'/'+id)}><Icon size={16}/>{label}</button>)}</nav><div className="header-actions"><button className="icon" onClick={()=>setDark(!dark)} aria-label="Zmeniť vzhľad">{dark?<Sun/>:<Moon/>}</button><button className="icon mobile-only" onClick={()=>setMobile(!mobile)}><Menu/></button></div></header>
     {mobile&&<div className="mobile-nav">{nav.map(([id,label,Icon])=><button key={id} onClick={()=>{navigate(id==='dashboard'?'/':'/'+id);setMobile(false)}}><Icon size={18}/>{label}</button>)}</div>}
     <main>
-      {where.page!=='calculator'&&where.page!=='life-calculator'&&<div className="toolbar"><div className="seg"><button className={currency==='CZK'?'on':''} onClick={()=>setCurrency('CZK')}>CZK</button><button className={currency==='EUR'?'on':''} onClick={()=>setCurrency('EUR')}>EUR</button></div><div className="seg"><button className={!real?'on':''} onClick={()=>setReal(false)}>Nominálne</button><button className={real?'on':''} onClick={()=>setReal(true)}>Dnešné ceny</button></div><span className="quality"><i/>Vstupy: stredná istota · október 2026</span></div>}
-      {stress>0&&where.page!=='calculator'&&where.page!=='life-calculator'&&<div className="active-stress"><CircleAlert size={16}/><span>Aktívny stres test: {pct(stress)} pokles portfólia a mzdy, príjem budovy je počas 12 mesiacov znížený o {pct(stress*.4)}.</span><button onClick={()=>setStress(0)}>Vypnúť stres test</button></div>}
+      {where.page!=='calculator'&&where.page!=='life-calculator'&&where.page!=='buy-vs-rent'&&<div className="toolbar"><div className="seg"><button className={currency==='CZK'?'on':''} onClick={()=>setCurrency('CZK')}>CZK</button><button className={currency==='EUR'?'on':''} onClick={()=>setCurrency('EUR')}>EUR</button></div><div className="seg"><button className={!real?'on':''} onClick={()=>setReal(false)}>Nominálne</button><button className={real?'on':''} onClick={()=>setReal(true)}>Dnešné ceny</button></div><span className="quality"><i/>Vstupy: stredná istota · október 2026</span></div>}
+      {stress>0&&where.page!=='calculator'&&where.page!=='life-calculator'&&where.page!=='buy-vs-rent'&&<div className="active-stress"><CircleAlert size={16}/><span>Aktívny stres test: {pct(stress)} pokles portfólia a mzdy, príjem budovy je počas 12 mesiacov znížený o {pct(stress*.4)}.</span><button onClick={()=>setStress(0)}>Vypnúť stres test</button></div>}
       {where.page==='dashboard'&&<Dashboard inputs={inputs} results={results} fmt={fmt} selected={selected} setSelected={setSelected}/>} 
       {where.page==='variants'&&<VariantsPage inputs={inputs} results={results} fmt={fmt}/>} 
       {where.page==='compare'&&<Compare results={results} fmt={fmt} selected={selected} setSelected={setSelected} inputs={inputs}/>} 
       {where.page==='life-calculator'&&<LifeCalculator/>}
       {where.page==='calculator'&&<PropertyCalculator/>}
+      {where.page==='buy-vs-rent'&&<BuyRentCalculator/>}
       {where.page==='inputs'&&<InputsPage inputs={inputs} setInputs={setInputs} reset={reset} exportJson={exportJson} fileRef={fileRef} importJson={importJson}/>} 
       {where.page==='fire'&&<Fire results={results} inputs={inputs} fmt={fmt}/>} 
       {where.page==='stress'&&<Stress results={results} stress={stress} setStress={setStress} fmt={fmt}/>} 
